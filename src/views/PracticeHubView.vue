@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1 class="text-h4 mb-2">Practice Hub</h1>
-    <p class="text-medium-emphasis mb-6">Choose a section to train with 2026-style tasks.</p>
+    <p class="text-medium-emphasis mb-6">Choose a section to train with 2026-style tasks (expanded bank in Phase 3).</p>
 
     <v-row>
       <v-col cols="12" md="6" lg="3" v-for="item in sections" :key="item.title">

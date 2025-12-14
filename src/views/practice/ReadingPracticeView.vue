@@ -5,6 +5,17 @@
 
     <SectionTimer label="Reading Section Timer" :time="timer.formatted" :percent="timer.percent" />
 
+    <div class="mb-3 d-flex ga-2 flex-wrap">
+      <v-chip
+        v-for="(item, i) in currentSet"
+        :key="item.id"
+        :color="i === idx ? 'primary' : answered[i] ? 'success' : undefined"
+        @click="jump(i)"
+      >
+        Q{{ i + 1 }}
+      </v-chip>
+    </div>
+
     <v-alert v-if="finished" type="success" variant="tonal" class="mb-4">
       Score: {{ score }}/{{ currentSet.length }} | Stage 2: <strong>{{ stage2Mode }}</strong>
     </v-alert>
@@ -41,12 +52,19 @@ const idx = ref(0)
 const selected = ref(null)
 const score = ref(0)
 const finished = ref(false)
+const answered = ref({})
 
 const q = computed(() => pool.value[idx.value])
 const currentSet = computed(() => pool.value)
 
+const jump = (i) => {
+  idx.value = i
+  selected.value = null
+}
+
 const submitAnswer = () => {
   if (selected.value === null) return
+  answered.value[idx.value] = true
   if (selected.value === q.value.answer) score.value += 1
 
   if (idx.value < pool.value.length - 1) {
@@ -56,7 +74,7 @@ const submitAnswer = () => {
   }
 
   if (stage2Mode.value === 'pending') {
-    stage2Mode.value = score.value >= 2 ? 'hard' : 'easy'
+    stage2Mode.value = score.value >= 3 ? 'hard' : 'easy'
     pool.value = [
       ...pool.value,
       ...(stage2Mode.value === 'hard' ? readingAdaptive.stage2Hard : readingAdaptive.stage2Easy),
@@ -78,6 +96,7 @@ const restart = () => {
   score.value = 0
   selected.value = null
   finished.value = false
+  answered.value = {}
   timer.reset(14 * 60)
   timer.start(() => {
     finished.value = true

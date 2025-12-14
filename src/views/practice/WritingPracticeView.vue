@@ -15,7 +15,7 @@
       </div>
 
       <v-textarea v-model="response" label="Your response" rows="8" auto-grow />
-      <div class="text-caption text-medium-emphasis mb-3">Word count: {{ words }}</div>
+      <div class="text-caption text-medium-emphasis mb-3">Word count: {{ words }} · Quality estimate: {{ quality }}/5</div>
 
       <div class="d-flex ga-2 flex-wrap">
         <v-btn color="primary" @click="submit">Submit Task</v-btn>
@@ -43,6 +43,12 @@ const submitted = ref(false)
 
 const task = computed(() => writingTasks[i.value])
 const words = computed(() => response.value.trim() ? response.value.trim().split(/\s+/).length : 0)
+const quality = computed(() => {
+  const lengthScore = Math.max(1, Math.min(5, Math.round((words.value / task.value.minWords) * 5)))
+  const sentenceCount = response.value.split(/[.!?]+/).filter(Boolean).length
+  const structureScore = Math.max(1, Math.min(5, sentenceCount >= 3 ? 5 : sentenceCount + 1))
+  return Math.round((lengthScore + structureScore) / 2)
+})
 const timer = useTimer(task.value.time)
 
 watch(task, (val) => {

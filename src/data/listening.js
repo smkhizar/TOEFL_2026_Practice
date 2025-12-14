@@ -24,6 +24,22 @@ export const listeningAdaptive = {
       options: ['Low salinity', 'Prolonged high temperature', 'High wind speed', 'Low sunlight'],
       answer: 1,
     },
+    {
+      id: 'l4',
+      type: 'Announcement',
+      transcript: 'Announcement: The exam room is now Hall D, Floor 2. Bring a photo ID.',
+      prompt: 'What must students bring?',
+      options: ['Laptop charger', 'Photo ID', 'Course syllabus', 'Printed transcript'],
+      answer: 1,
+    },
+    {
+      id: 'l5',
+      type: 'Conversation',
+      transcript: 'A: The professor moved office hours to Thursday. B: Great, that avoids my Tuesday lab.',
+      prompt: 'Why does B approve the change?',
+      options: ['Thursday is online', 'Tuesday conflict removed', 'Lab is canceled', 'Office hours are longer'],
+      answer: 1,
+    },
   ],
   stage2Easy: [
     {
@@ -42,6 +58,14 @@ export const listeningAdaptive = {
       options: ['2 PM', '3 PM', 'Before seminar', 'Tomorrow only'],
       answer: 1,
     },
+    {
+      id: 'le3',
+      type: 'Conversation',
+      transcript: 'A: Can we finish this today? B: Yes, if we split references now.',
+      prompt: 'How can they finish today?',
+      options: ['Delay submission', 'Split references', 'Ask TA to do it', 'Skip formatting'],
+      answer: 1,
+    },
   ],
   stage2Hard: [
     {
@@ -58,6 +82,14 @@ export const listeningAdaptive = {
       transcript: 'Professor: You can submit by midnight, but sooner is better if you want detailed feedback.',
       prompt: 'What is implied?',
       options: ['Late work gets higher grades', 'Early submission may get better feedback', 'Deadline is noon', 'Feedback is automatic'],
+      answer: 1,
+    },
+    {
+      id: 'lh3',
+      type: 'Academic Inference',
+      transcript: 'Lecturer: While rainfall increased overall, crop yields declined due to irregular distribution and delayed onset.',
+      prompt: 'What best explains lower yields?',
+      options: ['Too little annual rain', 'Irregular timing of rainfall', 'Higher fertilizer costs', 'Fewer farm workers'],
       answer: 1,
     },
   ],

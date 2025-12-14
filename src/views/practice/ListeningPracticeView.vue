@@ -1,17 +1,36 @@
 <template>
   <div>
     <h1 class="text-h4 mb-2">Listening Practice (Adaptive)</h1>
-    <p class="text-medium-emphasis mb-4">Read transcript now; audio player mode will be enhanced in Phase 3.</p>
+    <p class="text-medium-emphasis mb-4">Audio-first flow with optional transcript reveal for accessibility.</p>
 
     <SectionTimer label="Listening Section Timer" :time="timer.formatted" :percent="timer.percent" />
+
+    <div class="mb-3 d-flex ga-2 flex-wrap">
+      <v-chip
+        v-for="(item, i) in currentSet"
+        :key="item.id"
+        :color="i === idx ? 'primary' : answered[i] ? 'success' : undefined"
+        @click="jump(i)"
+      >
+        Q{{ i + 1 }}
+      </v-chip>
+    </div>
 
     <v-alert v-if="finished" type="success" variant="tonal" class="mb-4">
       Score: {{ score }}/{{ currentSet.length }} | Stage 2: <strong>{{ stage2Mode }}</strong>
     </v-alert>
 
     <v-card v-if="!finished" rounded="xl" elevation="0" class="pa-5">
-      <div class="text-overline mb-2">Question {{ idx + 1 }} / {{ currentSet.length }} · {{ q.type }}</div>
-      <v-alert type="info" variant="tonal" class="mb-3">{{ q.transcript }}</v-alert>
+      <div class="d-flex justify-space-between align-center mb-2">
+        <div class="text-overline">Question {{ idx + 1 }} / {{ currentSet.length }} · {{ q.type }}</div>
+        <v-switch v-model="showTranscript" label="Show transcript" hide-details density="compact" inset />
+      </div>
+
+      <div class="mb-3 d-flex ga-2">
+        <v-btn color="secondary" @click="playAudio">Play Audio</v-btn>
+      </div>
+
+      <v-alert v-if="showTranscript" type="info" variant="tonal" class="mb-3">{{ q.transcript }}</v-alert>
       <p class="font-weight-medium mb-4">{{ q.prompt }}</p>
 
       <v-radio-group v-model="selected" class="mb-4">
@@ -41,12 +60,26 @@ const idx = ref(0)
 const selected = ref(null)
 const score = ref(0)
 const finished = ref(false)
+const showTranscript = ref(false)
+const answered = ref({})
 
 const q = computed(() => pool.value[idx.value])
 const currentSet = computed(() => pool.value)
 
+const playAudio = () => {
+  const utter = new SpeechSynthesisUtterance(q.value.transcript)
+  utter.rate = 0.95
+  speechSynthesis.speak(utter)
+}
+
+const jump = (i) => {
+  idx.value = i
+  selected.value = null
+}
+
 const submitAnswer = () => {
   if (selected.value === null) return
+  answered.value[idx.value] = true
   if (selected.value === q.value.answer) score.value += 1
 
   if (idx.value < pool.value.length - 1) {
@@ -56,7 +89,7 @@ const submitAnswer = () => {
   }
 
   if (stage2Mode.value === 'pending') {
-    stage2Mode.value = score.value >= 2 ? 'hard' : 'easy'
+    stage2Mode.value = score.value >= 3 ? 'hard' : 'easy'
     pool.value = [
       ...pool.value,
       ...(stage2Mode.value === 'hard' ? listeningAdaptive.stage2Hard : listeningAdaptive.stage2Easy),
@@ -72,12 +105,15 @@ const submitAnswer = () => {
 }
 
 const restart = () => {
+  speechSynthesis.cancel()
   stage2Mode.value = 'pending'
   pool.value = [...listeningAdaptive.stage1]
   idx.value = 0
   score.value = 0
   selected.value = null
   finished.value = false
+  showTranscript.value = false
+  answered.value = {}
   timer.reset(12 * 60)
   timer.start(() => {
     finished.value = true

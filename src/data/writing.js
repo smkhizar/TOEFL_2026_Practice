@@ -23,4 +23,20 @@ export const writingTasks = [
     minWords: 100,
     time: 600,
   },
+  {
+    id: 'w4',
+    type: 'Write an Email',
+    prompt: 'Write to the library office reporting that the reservation system double-booked your study room and request support.',
+    sample: 'Dear Library Team, I am writing regarding...',
+    minWords: 90,
+    time: 600,
+  },
+  {
+    id: 'w5',
+    type: 'Academic Discussion',
+    prompt: 'Should attendance in large lecture courses affect final grades? Explain your position with one reason.',
+    sample: 'In my view, attendance should...',
+    minWords: 100,
+    time: 600,
+  },
 ]

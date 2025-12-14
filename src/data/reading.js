@@ -23,6 +23,22 @@ export const readingAdaptive = {
       options: ['Cities should ban traffic', 'Trees improve urban climate comfort', 'Walkability lowers taxes', 'Heat comes only from cars'],
       answer: 1,
     },
+    {
+      id: 'r4',
+      type: 'Daily Life',
+      passage: 'Email: "Please bring your student ID to the advising office before 4 PM for document verification."',
+      prompt: 'What is required?',
+      options: ['Bring transcript', 'Bring student ID', 'Book online interview', 'Pay a fee'],
+      answer: 1,
+    },
+    {
+      id: 'r5',
+      type: 'Academic Passage',
+      passage: 'Frequent low-stakes quizzes improve long-term recall by forcing repeated retrieval from memory.',
+      prompt: 'Why do low-stakes quizzes help?',
+      options: ['They are graded heavily', 'They reduce study time to zero', 'They promote repeated retrieval', 'They replace lectures'],
+      answer: 2,
+    },
   ],
   stage2Easy: [
     {
@@ -39,6 +55,14 @@ export const readingAdaptive = {
       prompt: 'The stu_____ completed the assi_____ before noon.',
       options: ['student / assignment', 'study / assist', 'stunt / assign', 'sturdy / assistant'],
       answer: 0,
+    },
+    {
+      id: 're3',
+      type: 'Daily Life',
+      passage: 'App alert: "Quiz room changed from B12 to C04."',
+      prompt: 'What should students do?',
+      options: ['Skip quiz', 'Go to C04', 'Stay in B12', 'Email professor first'],
+      answer: 1,
     },
   ],
   stage2Hard: [
@@ -57,6 +81,14 @@ export const readingAdaptive = {
       prompt: 'Why include the contrast?',
       options: ['To entertain readers', 'To show policy trade-offs clearly', 'To avoid data discussion', 'To criticize rural areas'],
       answer: 1,
+    },
+    {
+      id: 'rh3',
+      type: 'Academic Inference',
+      passage: 'Researchers observed that bilingual students switched problem-solving strategies faster under time pressure.',
+      prompt: 'Best inference?',
+      options: ['Bilingualism may support cognitive flexibility', 'Time pressure lowers all performance', 'Strategies are unrelated to language', 'Monolingual students had no strategies'],
+      answer: 0,
     },
   ],
 }

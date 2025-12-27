@@ -17,13 +17,20 @@
 <script setup>
 import { computed } from 'vue'
 import { useProgressStore } from '../stores/progress'
+import { useBandEstimate } from '../composables/useBandEstimate'
 
 const s = useProgressStore()
+
+const overallPercent = computed(() => {
+  const vals = [s.avgReading, s.avgListening].filter((x) => x > 0)
+  return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0
+})
 
 const cards = computed(() => [
   { title: 'Practice Sessions', value: String(s.practiceSessions) },
   { title: 'Mock Exams Taken', value: String(s.mockExamsTaken) },
   { title: 'Reading Avg', value: s.avgReading ? `${s.avgReading}%` : '—' },
   { title: 'Listening Avg', value: s.avgListening ? `${s.avgListening}%` : '—' },
+  { title: 'Estimated Overall Band', value: overallPercent.value ? String(useBandEstimate(overallPercent.value)) : '—' },
 ])
 </script>

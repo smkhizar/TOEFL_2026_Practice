@@ -10,6 +10,8 @@ export const useProgressStore = defineStore('progress', {
     listeningScores: [],
     writingSubmissions: 0,
     speakingAttempts: 0,
+    lastReadingAttempt: null,
+    lastListeningAttempt: null,
   }),
   getters: {
     avgReading: (s) => (s.readingScores.length ? Math.round(s.readingScores.reduce((a, b) => a + b, 0) / s.readingScores.length) : 0),
@@ -23,14 +25,16 @@ export const useProgressStore = defineStore('progress', {
     persist() {
       localStorage.setItem(KEY, JSON.stringify(this.$state))
     },
-    addReading(score) {
+    addReading(score, detail = null) {
       this.practiceSessions += 1
       this.readingScores.push(score)
+      this.lastReadingAttempt = detail
       this.persist()
     },
-    addListening(score) {
+    addListening(score, detail = null) {
       this.practiceSessions += 1
       this.listeningScores.push(score)
+      this.lastListeningAttempt = detail
       this.persist()
     },
     addWriting() {

@@ -3,6 +3,7 @@ export const listeningAdaptive = {
     {
       id: 'l1',
       type: 'Listen and Choose a Response',
+      audioUrl: '/audio/listening/l1.mp3',
       transcript: 'A: Did you submit the lab form? B: Not yet, the portal was down this morning.',
       prompt: 'Why was it not submitted?',
       options: ['Forgot password', 'Portal outage', 'No lab partner', 'Deadline passed'],
@@ -11,6 +12,7 @@ export const listeningAdaptive = {
     {
       id: 'l2',
       type: 'Conversation',
+      audioUrl: '/audio/listening/l2.mp3',
       transcript: 'Student 1: We still need sources. Student 2: Let\'s meet in the library at 5 and finish outline first.',
       prompt: 'What is their immediate plan?',
       options: ['Call professor', 'Finish outline at library', 'Cancel project', 'Submit final draft'],
@@ -19,6 +21,7 @@ export const listeningAdaptive = {
     {
       id: 'l3',
       type: 'Academic Talk',
+      audioUrl: '/audio/listening/l3.mp3',
       transcript: 'Professor: Coral bleaching increases when water temperatures remain elevated for multiple weeks.',
       prompt: 'What condition increases bleaching?',
       options: ['Low salinity', 'Prolonged high temperature', 'High wind speed', 'Low sunlight'],
@@ -27,6 +30,7 @@ export const listeningAdaptive = {
     {
       id: 'l4',
       type: 'Announcement',
+      audioUrl: '/audio/listening/l4.mp3',
       transcript: 'Announcement: The exam room is now Hall D, Floor 2. Bring a photo ID.',
       prompt: 'What must students bring?',
       options: ['Laptop charger', 'Photo ID', 'Course syllabus', 'Printed transcript'],
@@ -35,6 +39,7 @@ export const listeningAdaptive = {
     {
       id: 'l5',
       type: 'Conversation',
+      audioUrl: '/audio/listening/l5.mp3',
       transcript: 'A: The professor moved office hours to Thursday. B: Great, that avoids my Tuesday lab.',
       prompt: 'Why does B approve the change?',
       options: ['Thursday is online', 'Tuesday conflict removed', 'Lab is canceled', 'Office hours are longer'],
@@ -45,6 +50,7 @@ export const listeningAdaptive = {
     {
       id: 'le1',
       type: 'Announcement',
+      audioUrl: '/audio/listening/le1.mp3',
       transcript: 'Announcement: The bus stop near Hall B is closed today due to maintenance.',
       prompt: 'What should students expect?',
       options: ['Extra buses', 'Temporary closure', 'New route map app', 'Free rides'],
@@ -53,6 +59,7 @@ export const listeningAdaptive = {
     {
       id: 'le2',
       type: 'Response',
+      audioUrl: '/audio/listening/le2.mp3',
       transcript: 'A: Are you free at 2? B: I can do 3 after my seminar ends.',
       prompt: 'When can B meet?',
       options: ['2 PM', '3 PM', 'Before seminar', 'Tomorrow only'],
@@ -61,6 +68,7 @@ export const listeningAdaptive = {
     {
       id: 'le3',
       type: 'Conversation',
+      audioUrl: '/audio/listening/le3.mp3',
       transcript: 'A: Can we finish this today? B: Yes, if we split references now.',
       prompt: 'How can they finish today?',
       options: ['Delay submission', 'Split references', 'Ask TA to do it', 'Skip formatting'],
@@ -71,6 +79,7 @@ export const listeningAdaptive = {
     {
       id: 'lh1',
       type: 'Multi-speaker Inference',
+      audioUrl: '/audio/listening/lh1.mp3',
       transcript: 'A: We can present Monday. B: That conflicts with chemistry lab. C: Tuesday morning is open for everyone.',
       prompt: 'Most likely final decision?',
       options: ['Monday presentation', 'Cancel presentation', 'Tuesday morning', 'After chemistry finals'],
@@ -79,6 +88,7 @@ export const listeningAdaptive = {
     {
       id: 'lh2',
       type: 'Implied Meaning',
+      audioUrl: '/audio/listening/lh2.mp3',
       transcript: 'Professor: You can submit by midnight, but sooner is better if you want detailed feedback.',
       prompt: 'What is implied?',
       options: ['Late work gets higher grades', 'Early submission may get better feedback', 'Deadline is noon', 'Feedback is automatic'],
@@ -87,6 +97,7 @@ export const listeningAdaptive = {
     {
       id: 'lh3',
       type: 'Academic Inference',
+      audioUrl: '/audio/listening/lh3.mp3',
       transcript: 'Lecturer: While rainfall increased overall, crop yields declined due to irregular distribution and delayed onset.',
       prompt: 'What best explains lower yields?',
       options: ['Too little annual rain', 'Irregular timing of rainfall', 'Higher fertilizer costs', 'Fewer farm workers'],

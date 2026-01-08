@@ -1,7 +1,14 @@
 <template>
   <div>
-    <h1 class="text-h4 mb-2">Mock Exam {{ route.params.id }} — Live</h1>
-    <p class="text-medium-emphasis mb-4">Strict flow mode: section order locked during active exam.</p>
+    <div class="d-flex align-center justify-space-between mb-2">
+      <h1 class="text-h4">Mock Exam {{ route.params.id }} — Live</h1>
+      <v-btn color="secondary" @click="enterFullscreen">Enter Fullscreen</v-btn>
+    </div>
+    <p class="text-medium-emphasis mb-4">Strict flow mode + focus monitoring enabled.</p>
+
+    <v-alert v-if="focusWarnings > 0" type="warning" variant="tonal" class="mb-3">
+      Focus warnings: {{ focusWarnings }}/3. Leaving tab/window repeatedly will forfeit this exam.
+    </v-alert>
 
     <SectionTimer :label="`${sections[current].name} Timer`" :time="timer.formatted" :percent="timer.percent" />
 
@@ -18,7 +25,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useTimer } from '../../composables/useTimer'
 import SectionTimer from '../../components/SectionTimer.vue'
@@ -37,7 +44,41 @@ const sections = [
 
 const current = ref(0)
 const active = ref(true)
+const focusWarnings = ref(0)
 const timer = useTimer(sections[0].sec)
+
+const enterFullscreen = async () => {
+  const el = document.documentElement
+  if (!document.fullscreenElement && el.requestFullscreen) {
+    await el.requestFullscreen().catch(() => {})
+  }
+}
+
+const forfeitExam = () => {
+  active.value = false
+  timer.stop()
+  router.push('/exam')
+}
+
+const onVisibility = () => {
+  if (!active.value) return
+  if (document.visibilityState === 'hidden') {
+    focusWarnings.value += 1
+    if (focusWarnings.value >= 3) {
+      alert('Exam forfeited due to repeated focus loss.')
+      forfeitExam()
+    }
+  }
+}
+
+const onWindowBlur = () => {
+  if (!active.value) return
+  focusWarnings.value += 1
+  if (focusWarnings.value >= 3) {
+    alert('Exam forfeited due to repeated focus loss.')
+    forfeitExam()
+  }
+}
 
 const loadSection = () => {
   timer.reset(sections[current.value].sec)
@@ -68,5 +109,14 @@ onBeforeRouteLeave((to, from, next) => {
   } else next(false)
 })
 
-onMounted(loadSection)
+onMounted(() => {
+  loadSection()
+  document.addEventListener('visibilitychange', onVisibility)
+  window.addEventListener('blur', onWindowBlur)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', onVisibility)
+  window.removeEventListener('blur', onWindowBlur)
+})
 </script>

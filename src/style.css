@@ -2,10 +2,13 @@
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
-html, body, #app {
+html,
+body,
+#app {
   margin: 0;
   width: 100%;
   height: 100%;
+  background: radial-gradient(circle at top right, #1a2453 0%, #0b1020 45%, #070b16 100%);
 }
 
 .border-b {
@@ -14,4 +17,34 @@ html, body, #app {
 
 .border-e {
   border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-bar {
+  backdrop-filter: blur(10px);
+  background: rgba(11, 16, 32, 0.75) !important;
+}
+
+.page-shell {
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.v-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+}
+
+@media (max-width: 600px) {
+  .text-h4 {
+    font-size: 1.5rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .v-container {
+    padding: 12px !important;
+  }
+
+  audio {
+    width: 100%;
+  }
 }

@@ -77,6 +77,20 @@ const currentSet = computed(() => pool.value)
 const percent = computed(() => Math.round((score.value / currentSet.value.length) * 100))
 const band = computed(() => useBandEstimate(percent.value))
 
+const finalize = () => {
+  if (finished.value) return
+  finished.value = true
+  timer.stop()
+  progress.addReading(score.value, {
+    stage2Mode: stage2Mode.value,
+    score: score.value,
+    total: currentSet.value.length,
+    percent: percent.value,
+    band: band.value,
+    responses: responses.value,
+  })
+}
+
 const jump = (i) => {
   idx.value = i
   selected.value = responses.value[i] ?? null
@@ -108,16 +122,7 @@ const submitAnswer = () => {
     return
   }
 
-  finished.value = true
-  timer.stop()
-  progress.addReading(score.value, {
-    stage2Mode: stage2Mode.value,
-    score: score.value,
-    total: currentSet.value.length,
-    percent: percent.value,
-    band: band.value,
-    responses: responses.value,
-  })
+  finalize()
 }
 
 const restart = () => {
@@ -130,9 +135,7 @@ const restart = () => {
   answered.value = {}
   responses.value = {}
   timer.reset(14 * 60)
-  timer.start(() => {
-    finished.value = true
-  })
+  timer.start(finalize)
 }
 
 onMounted(restart)

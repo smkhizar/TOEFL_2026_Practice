@@ -27,7 +27,13 @@
       </div>
 
       <div class="mb-3 d-flex ga-2 align-center">
-        <audio v-if="q.audioUrl" :src="q.audioUrl" controls preload="none" />
+        <audio
+          v-if="q.audioUrl && !audioFailed[q.id]"
+          :src="q.audioUrl"
+          controls
+          preload="none"
+          @error="audioFailed[q.id] = true"
+        />
         <v-btn v-else color="secondary" @click="playAudio">Play Audio</v-btn>
       </div>
 
@@ -82,6 +88,7 @@ const finished = ref(false)
 const showTranscript = ref(false)
 const answered = ref({})
 const responses = ref({})
+const audioFailed = ref({})
 
 const q = computed(() => pool.value[idx.value])
 const currentSet = computed(() => pool.value)
@@ -92,6 +99,20 @@ const playAudio = () => {
   const utter = new SpeechSynthesisUtterance(q.value.transcript)
   utter.rate = 0.95
   speechSynthesis.speak(utter)
+}
+
+const finalize = () => {
+  if (finished.value) return
+  finished.value = true
+  timer.stop()
+  progress.addListening(score.value, {
+    stage2Mode: stage2Mode.value,
+    score: score.value,
+    total: currentSet.value.length,
+    percent: percent.value,
+    band: band.value,
+    responses: responses.value,
+  })
 }
 
 const jump = (i) => {
@@ -125,16 +146,7 @@ const submitAnswer = () => {
     return
   }
 
-  finished.value = true
-  timer.stop()
-  progress.addListening(score.value, {
-    stage2Mode: stage2Mode.value,
-    score: score.value,
-    total: currentSet.value.length,
-    percent: percent.value,
-    band: band.value,
-    responses: responses.value,
-  })
+  finalize()
 }
 
 const restart = () => {
@@ -148,10 +160,9 @@ const restart = () => {
   showTranscript.value = false
   answered.value = {}
   responses.value = {}
+  audioFailed.value = {}
   timer.reset(12 * 60)
-  timer.start(() => {
-    finished.value = true
-  })
+  timer.start(finalize)
 }
 
 onMounted(restart)

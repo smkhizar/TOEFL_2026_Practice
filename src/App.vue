@@ -36,7 +36,11 @@
 
     <v-main>
       <v-container fluid class="pa-3 pa-sm-6 page-shell">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </v-container>
     </v-main>
   </v-app>

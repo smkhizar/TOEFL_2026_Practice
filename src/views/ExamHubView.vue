@@ -5,7 +5,7 @@
 
     <v-row>
       <v-col cols="12" md="6" lg="4" v-for="m in mocks" :key="m.id">
-        <v-card rounded="xl" elevation="0" class="pa-4 h-100 d-flex flex-column">
+        <v-card rounded="xl" elevation="0" class="pa-4 h-100 d-flex flex-column interactive-card">
           <div class="text-overline">{{ m.title }}</div>
           <div class="text-body-2 text-medium-emphasis mb-2">Adaptive Reading + Listening · {{ m.estMinutes }} min</div>
           <v-chip size="small" class="mb-4" color="secondary" variant="tonal">{{ m.difficulty }}</v-chip>

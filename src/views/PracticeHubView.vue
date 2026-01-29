@@ -5,7 +5,7 @@
 
     <v-row>
       <v-col cols="12" md="6" lg="3" v-for="item in sections" :key="item.title">
-        <v-card :to="item.to" rounded="xl" elevation="0" class="pa-4 h-100">
+        <v-card :to="item.to" rounded="xl" elevation="0" class="pa-4 h-100 interactive-card">
           <v-icon :icon="item.icon" size="30" class="mb-2" color="primary" />
           <div class="text-h6">{{ item.title }}</div>
           <div class="text-body-2 text-medium-emphasis">{{ item.desc }}</div>

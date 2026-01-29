@@ -13,10 +13,10 @@
       </div>
 
       <div class="mt-4 d-flex ga-2 flex-wrap">
-        <v-btn color="secondary" @click="playPrompt">Play Prompt</v-btn>
-        <v-btn color="primary" @click="startRecording" :disabled="recording">Start Recording</v-btn>
+        <v-btn color="secondary" :disabled="recording || initializing" @click="playPrompt">Play Prompt</v-btn>
+        <v-btn color="primary" :loading="initializing" @click="startRecording" :disabled="recording">Start Recording</v-btn>
         <v-btn color="error" variant="tonal" @click="stopRecording" :disabled="!recording">Stop</v-btn>
-        <v-btn variant="text" @click="nextTask">Next Task</v-btn>
+        <v-btn variant="text" :disabled="recording" @click="nextTask">Next Task</v-btn>
       </div>
 
       <div class="mt-3">Mic: <strong>{{ micPermission }}</strong> | Recognition: <strong>{{ recognitionStatus }}</strong></div>
@@ -36,11 +36,14 @@
     </v-card>
 
     <v-alert type="info" variant="tonal">Tip: In Chrome, allow microphone and keep tab focused for best speech recognition.</v-alert>
+
+    <v-snackbar v-model="savedToast" timeout="1600" color="success">Speaking attempt saved.</v-snackbar>
+    <v-snackbar v-model="errorToast" timeout="2200" color="error">Microphone access failed.</v-snackbar>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onUnmounted } from 'vue'
 import { speakingTasks } from '../../data/speaking'
 import { useProgressStore } from '../../stores/progress'
 
@@ -53,7 +56,10 @@ const micPermission = ref('unknown')
 const recognitionStatus = ref('idle')
 const transcript = ref('')
 const recording = ref(false)
+const initializing = ref(false)
 const duration = ref(0)
+const savedToast = ref(false)
+const errorToast = ref(false)
 let mediaRecorder = null
 let intervalId = null
 let recognition = null
@@ -122,10 +128,10 @@ const stopRecognition = () => {
 }
 
 const startRecording = async () => {
+  initializing.value = true
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     micPermission.value = 'granted'
-
     mediaRecorder = new MediaRecorder(stream)
     mediaRecorder.start()
 
@@ -138,6 +144,9 @@ const startRecording = async () => {
     startRecognition()
   } catch {
     micPermission.value = 'denied'
+    errorToast.value = true
+  } finally {
+    initializing.value = false
   }
 }
 
@@ -148,6 +157,7 @@ const stopRecording = () => {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop()
   stopRecognition()
   progress.addSpeaking()
+  savedToast.value = true
 }
 
 const nextTask = () => {
@@ -157,4 +167,10 @@ const nextTask = () => {
   duration.value = 0
   current.value = (current.value + 1) % tasks.length
 }
+
+onUnmounted(() => {
+  clearInterval(intervalId)
+  speechSynthesis.cancel()
+  stopRecognition()
+})
 </script>

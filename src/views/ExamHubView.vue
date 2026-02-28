@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1 class="text-h4 mb-2">Mock Exams</h1>
-    <p class="text-medium-emphasis mb-6">12 full TOEFL-style timed simulations.</p>
+    <p class="text-medium-emphasis mb-6">18 full TOEFL-style timed simulations.</p>
 
     <v-row>
       <v-col cols="12" md="6" lg="4" v-for="m in mocks" :key="m.id">

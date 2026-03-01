@@ -6,6 +6,7 @@ import { writingTasks } from '../../data/writing'
 import { useTimer } from '../../hooks/useTimer'
 import SectionTimer from '../../components/SectionTimer'
 import { useProgressStore } from '../../store/useProgressStore'
+import { useAuthStore } from '../../store/useAuthStore'
 
 const taskTypes = ['all', 'Build a Sentence', 'Write an Email', 'Academic Discussion']
 
@@ -23,6 +24,7 @@ const formatTime = (sec) => {
 
 export default function WritingPracticeView() {
   const progress = useProgressStore()
+  const userId = useAuthStore((s) => s.user?.id)
   const [filterType, setFilterType] = useState('all')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [response, setResponse] = useState('')
@@ -89,7 +91,7 @@ export default function WritingPracticeView() {
     setSubmitting(false)
     setToast(true)
     setCompletedIds((s) => new Set([...s, task.id]))
-    progress.addWriting()
+    progress.addWriting(userId)
   }
   submitRef.current = submit
 

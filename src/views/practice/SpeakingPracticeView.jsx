@@ -5,9 +5,11 @@ import {
 } from '@mui/material'
 import { speakingTasks } from '../../data/speaking'
 import { useProgressStore } from '../../store/useProgressStore'
+import { useAuthStore } from '../../store/useAuthStore'
 
 export default function SpeakingPracticeView() {
   const progress = useProgressStore()
+  const userId = useAuthStore((s) => s.user?.id)
   const tasks = speakingTasks
 
   const [current, setCurrent] = useState(0)
@@ -130,7 +132,7 @@ export default function SpeakingPracticeView() {
     }
     stopRecognition()
     setCompletedTasks((prev) => ({ ...prev, [current]: true }))
-    progress.addSpeaking()
+    progress.addSpeaking(userId)
     setSavedToast(true)
   }
 

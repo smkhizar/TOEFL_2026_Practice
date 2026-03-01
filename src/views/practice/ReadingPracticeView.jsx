@@ -8,6 +8,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CancelIcon from '@mui/icons-material/Cancel'
 import { readingAdaptive } from '../../data/reading'
 import { useProgressStore } from '../../store/useProgressStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import { useTimer } from '../../hooks/useTimer'
 import { getBandEstimate } from '../../hooks/useBandEstimate'
 import SectionTimer from '../../components/SectionTimer'
@@ -16,6 +17,7 @@ const TOTAL_TIME = 30 * 60
 
 export default function ReadingPracticeView() {
   const progress = useProgressStore()
+  const userId = useAuthStore((s) => s.user?.id)
   const timer = useTimer(TOTAL_TIME)
 
   const [stage2Mode, setStage2Mode] = useState('pending')
@@ -51,7 +53,7 @@ export default function ReadingPracticeView() {
       percent: pct,
       band: getBandEstimate(pct),
       responses: res,
-    })
+    }, userId)
   }, [finished]) // eslint-disable-line
 
   const finalize = () => {

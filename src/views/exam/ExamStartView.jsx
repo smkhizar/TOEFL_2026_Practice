@@ -7,6 +7,7 @@ import {
 import SectionTimer from '../../components/SectionTimer'
 import { useTimer } from '../../hooks/useTimer'
 import { useProgressStore } from '../../store/useProgressStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import { readingAdaptive } from '../../data/reading'
 import { listeningAdaptive } from '../../data/listening'
 import { speakingTasks as allSpeakingTasks } from '../../data/speaking'
@@ -51,6 +52,7 @@ export default function ExamStartView() {
   const { id: examId } = useParams()
   const navigate = useNavigate()
   const progress = useProgressStore()
+  const userId = useAuthStore((s) => s.user?.id)
   const timer = useTimer(1080)
 
   const mockData = useMemo(
@@ -174,7 +176,7 @@ export default function ExamStartView() {
 
   const finishExam = (result) => {
     setActive(false)
-    progress.addMockExam()
+    progress.addMockExam(userId)
     localStorage.setItem('toefl-last-exam', JSON.stringify(result))
     navigate(`/exam/${examId}/review`)
   }

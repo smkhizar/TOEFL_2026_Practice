@@ -9,6 +9,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CancelIcon from '@mui/icons-material/Cancel'
 import { listeningAdaptive } from '../../data/listening'
 import { useProgressStore } from '../../store/useProgressStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import { useTimer } from '../../hooks/useTimer'
 import { getBandEstimate } from '../../hooks/useBandEstimate'
 import SectionTimer from '../../components/SectionTimer'
@@ -17,6 +18,7 @@ const TOTAL_TIME = 22 * 60
 
 export default function ListeningPracticeView() {
   const progress = useProgressStore()
+  const userId = useAuthStore((s) => s.user?.id)
   const timer = useTimer(TOTAL_TIME)
 
   const [stage2Mode, setStage2Mode] = useState('pending')
@@ -45,7 +47,7 @@ export default function ListeningPracticeView() {
     progress.addListening(currentPct, {
       stage2Mode: sm, score: sc, total: p.length, percent: currentPct,
       band: getBandEstimate(currentPct), responses: res,
-    })
+    }, userId)
   }, [finished]) // eslint-disable-line
 
   const finalize = () => {

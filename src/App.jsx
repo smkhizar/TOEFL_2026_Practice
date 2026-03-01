@@ -1,11 +1,12 @@
-import React, { lazy, Suspense, useState } from 'react'
-import { Link, Routes, Route, useLocation } from 'react-router-dom'
+import React, { lazy, Suspense, useEffect, useState } from 'react'
+import { Link, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import {
-  AppBar, Box, CircularProgress, Divider, Drawer, IconButton,
+  AppBar, Box, Button, CircularProgress, Divider, Drawer, IconButton,
   List, ListItem, ListItemButton, ListItemIcon, ListItemText,
-  Toolbar, Typography, useMediaQuery, useTheme,
+  Toolbar, Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
+import LogoutIcon from '@mui/icons-material/Logout'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import SchoolIcon from '@mui/icons-material/School'
 import ArticleIcon from '@mui/icons-material/Article'
@@ -15,7 +16,10 @@ import MenuBookIcon from '@mui/icons-material/MenuBook'
 import HeadphonesIcon from '@mui/icons-material/Headphones'
 import MicIcon from '@mui/icons-material/Mic'
 import EditIcon from '@mui/icons-material/Edit'
+import { useAuthStore } from './store/useAuthStore'
+import { useProgressStore } from './store/useProgressStore'
 
+const AuthView = lazy(() => import('./views/AuthView'))
 const DashboardView = lazy(() => import('./views/DashboardView'))
 const PracticeHubView = lazy(() => import('./views/PracticeHubView'))
 const ExamHubView = lazy(() => import('./views/ExamHubView'))
@@ -91,10 +95,51 @@ function DrawerContent({ onClose, isMobile }) {
   )
 }
 
+function RequireAuth({ children }) {
+  const { user, loading } = useAuthStore()
+  const location = useLocation()
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" state={{ from: location }} replace />
+  }
+
+  return children
+}
+
 export default function App() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { user, loading, init, signOut } = useAuthStore()
+  const hydrate = useProgressStore((s) => s.hydrate)
+
+  useEffect(() => {
+    init()
+  }, []) // eslint-disable-line
+
+  // Hydrate progress whenever user changes (login/logout)
+  useEffect(() => {
+    if (!loading) {
+      hydrate(user?.id ?? null)
+    }
+  }, [user?.id, loading]) // eslint-disable-line
+
+  // Show full-screen spinner while auth state is initializing
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -118,6 +163,22 @@ export default function App() {
           <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
             TOEFL iBT 2026 — Practice Suite
           </Typography>
+          {user && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: { xs: 'none', sm: 'block' } }}
+              >
+                {user.email}
+              </Typography>
+              <Tooltip title="Sign Out">
+                <IconButton color="inherit" size="small" onClick={signOut}>
+                  <LogoutIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          )}
         </Toolbar>
       </AppBar>
 
@@ -175,17 +236,21 @@ export default function App() {
           }
         >
           <Routes>
-            <Route path="/" element={<DashboardView />} />
-            <Route path="/practice" element={<PracticeHubView />} />
-            <Route path="/practice/reading" element={<ReadingPracticeView />} />
-            <Route path="/practice/listening" element={<ListeningPracticeView />} />
-            <Route path="/practice/speaking" element={<SpeakingPracticeView />} />
-            <Route path="/practice/writing" element={<WritingPracticeView />} />
-            <Route path="/exam" element={<ExamHubView />} />
-            <Route path="/exam/:id/start" element={<ExamStartView />} />
-            <Route path="/exam/:id/review" element={<ExamReviewView />} />
-            <Route path="/analytics" element={<AnalyticsView />} />
-            <Route path="/settings" element={<SettingsView />} />
+            {/* Public route */}
+            <Route path="/auth" element={<AuthView />} />
+
+            {/* Protected routes */}
+            <Route path="/" element={<RequireAuth><DashboardView /></RequireAuth>} />
+            <Route path="/practice" element={<RequireAuth><PracticeHubView /></RequireAuth>} />
+            <Route path="/practice/reading" element={<RequireAuth><ReadingPracticeView /></RequireAuth>} />
+            <Route path="/practice/listening" element={<RequireAuth><ListeningPracticeView /></RequireAuth>} />
+            <Route path="/practice/speaking" element={<RequireAuth><SpeakingPracticeView /></RequireAuth>} />
+            <Route path="/practice/writing" element={<RequireAuth><WritingPracticeView /></RequireAuth>} />
+            <Route path="/exam" element={<RequireAuth><ExamHubView /></RequireAuth>} />
+            <Route path="/exam/:id/start" element={<RequireAuth><ExamStartView /></RequireAuth>} />
+            <Route path="/exam/:id/review" element={<RequireAuth><ExamReviewView /></RequireAuth>} />
+            <Route path="/analytics" element={<RequireAuth><AnalyticsView /></RequireAuth>} />
+            <Route path="/settings" element={<RequireAuth><SettingsView /></RequireAuth>} />
           </Routes>
         </Suspense>
       </Box>

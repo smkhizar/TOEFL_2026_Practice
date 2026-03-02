@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useBlocker } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, Box, Button, Card, CardContent, Chip, FormControl,
   FormControlLabel, Radio, RadioGroup, TextField, Typography,
@@ -359,26 +359,21 @@ export default function ExamStartView() {
     }
   }, []) // eslint-disable-line
 
-  // Navigation blocker
+  // Keep active ref fresh for callbacks
   const activeRef = useRef(true)
   activeRef.current = active
 
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
-    return activeRef.current && currentLocation.pathname !== nextLocation.pathname
-  })
-
+  // Warn on browser refresh / tab close
   useEffect(() => {
-    if (blocker.state === 'blocked') {
-      const ok = window.confirm('Exam is in progress. Leave and forfeit?')
-      if (ok) {
-        setActive(false)
-        timer.stop()
-        blocker.proceed()
-      } else {
-        blocker.reset()
+    const handleBeforeUnload = (e) => {
+      if (activeRef.current) {
+        e.preventDefault()
+        e.returnValue = 'Exam is in progress. Leave and forfeit?'
       }
     }
-  }, [blocker.state]) // eslint-disable-line
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
 
   const enterFullscreen = async () => {
     const el = document.documentElement

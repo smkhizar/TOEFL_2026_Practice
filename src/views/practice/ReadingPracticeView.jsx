@@ -109,17 +109,19 @@ export default function ReadingPracticeView() {
   const [resumeDialog, setResumeDialog] = useState(false)
   const [pendingResume, setPendingResume] = useState(null)
 
-  // Supabase session helpers
+  // Supabase session helpers — read uid fresh from store to avoid stale closure
   const upsertSession = (data) => {
-    if (!userId) return
+    const uid = useAuthStore.getState().user?.id
+    if (!uid) return
     supabase.from('reading_sessions').upsert(
-      { user_id: userId, session_data: data, updated_at: new Date().toISOString() },
+      { user_id: uid, session_data: data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     )
   }
   const deleteSession = () => {
-    if (!userId) return
-    supabase.from('reading_sessions').delete().eq('user_id', userId)
+    const uid = useAuthStore.getState().user?.id
+    if (!uid) return
+    supabase.from('reading_sessions').delete().eq('user_id', uid)
   }
 
   // Refs for latest state in timer callback
@@ -183,11 +185,12 @@ export default function ReadingPracticeView() {
 
   // Check Supabase for a saved in-progress session when user logs in
   useEffect(() => {
-    if (!userId) return
+    const uid = useAuthStore.getState().user?.id
+    if (!uid) return
     supabase
       .from('reading_sessions')
       .select('session_data')
-      .eq('user_id', userId)
+      .eq('user_id', uid)
       .single()
       .then(({ data, error }) => {
         if (!error && data?.session_data) {

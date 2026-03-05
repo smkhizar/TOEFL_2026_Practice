@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import {
   Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card,
   CardContent, Chip, Dialog, DialogActions, DialogContent, DialogContentText,
-  DialogTitle, FormControl, FormControlLabel, Radio, RadioGroup, TextField, Typography,
+  DialogTitle, FormControl, FormControlLabel, Radio, RadioGroup, Typography,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -26,12 +26,50 @@ function toSpacedDisplay(incomplete, answer) {
   return prefix + Array(missingCount).fill('_').join(' ')
 }
 
-function formatPassageText(passageText, blanks) {
-  let text = passageText
-  blanks.forEach((blank) => {
-    text = text.replace(blank.incomplete, toSpacedDisplay(blank.incomplete, blank.answer))
+// Renders passage text with inline input fields at each blank position.
+// User types only the missing letters (e.g. "tigate" for inves___ → investigate).
+function renderPassageWithInputs(passageText, blanks, values, onChangeAt, disabled, blankFeedback) {
+  if (!blanks?.length) return [passageText]
+  const parts = []
+  let remaining = passageText
+  blanks.forEach((blank, bi) => {
+    const pos = remaining.indexOf(blank.incomplete)
+    if (pos === -1) return
+    if (pos > 0) parts.push(remaining.slice(0, pos))
+    const prefix = blank.incomplete.replace(/_{2,}$/, '')
+    const missingCount = blank.answer.length - prefix.length
+    const fc = blankFeedback?.[bi]
+    const borderColor = fc === 'correct' ? '#4caf50' : fc === 'incorrect' ? '#f44336' : '#90caf9'
+    const textColor = fc === 'correct' ? '#4caf50' : fc === 'incorrect' ? '#f44336' : 'inherit'
+    parts.push(
+      <span key={bi} style={{ whiteSpace: 'nowrap' }}>
+        {prefix}
+        <input
+          value={values[bi] || ''}
+          onChange={(e) => { if (!disabled) onChangeAt(bi, e.target.value) }}
+          disabled={disabled}
+          maxLength={missingCount}
+          placeholder={'_'.repeat(missingCount)}
+          style={{
+            width: `${Math.max(missingCount * 13, 30)}px`,
+            border: 'none',
+            borderBottom: `2px solid ${borderColor}`,
+            background: 'transparent',
+            color: textColor,
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            outline: 'none',
+            textAlign: 'center',
+            padding: '0 2px',
+            margin: '0 2px',
+          }}
+        />
+      </span>
+    )
+    remaining = remaining.slice(pos + blank.incomplete.length)
   })
-  return text
+  if (remaining) parts.push(remaining)
+  return parts
 }
 
 export default function ReadingPracticeView() {
@@ -74,7 +112,10 @@ export default function ReadingPracticeView() {
   const q = pool[idx]
   const isCTW = q?.type === 'Complete the Words'
   const ctwAllFilled = isCTW && q?.blanks
-    ? q.blanks.every((_, i) => ctwAnswers[i]?.trim())
+    ? q.blanks.every((b, i) => {
+        const prefix = b.incomplete.replace(/_{2,}$/, '')
+        return ctwAnswers[i]?.trim().length === b.answer.length - prefix.length
+      })
     : false
 
   // Progress saving when finished state changes
@@ -164,10 +205,18 @@ export default function ReadingPracticeView() {
     timer.start(() => finalizeRef.current())
   }
 
-  // Reset CTW/selection when question changes
+  // Reset CTW/selection when question changes; pre-fill correct answers for review
   useEffect(() => {
     if (isCTW && q?.blanks) {
-      setCtwAnswers(new Array(q.blanks.length).fill(''))
+      if (answered[idx]) {
+        // Show correct missing letters when reviewing an already-answered CTW
+        setCtwAnswers(q.blanks.map(b => {
+          const prefix = b.incomplete.replace(/_{2,}$/, '')
+          return b.answer.slice(prefix.length)
+        }))
+      } else {
+        setCtwAnswers(new Array(q.blanks.length).fill(''))
+      }
     } else {
       setCtwAnswers([])
     }
@@ -186,7 +235,10 @@ export default function ReadingPracticeView() {
     let correct = 0
     if (item.type === 'Complete the Words') {
       if (!ctwAllFilled) return
-      correct = item.blanks.every((b, i) => ctwAnswers[i]?.toLowerCase().trim() === b.answer.toLowerCase()) ? 1 : 0
+      correct = item.blanks.every((b, i) => {
+        const prefix = b.incomplete.replace(/_{2,}$/, '')
+        return ctwAnswers[i]?.toLowerCase().trim() === b.answer.slice(prefix.length).toLowerCase()
+      }) ? 1 : 0
     } else {
       if (selected === null) return
       correct = selected === item.answer ? 1 : 0
@@ -344,42 +396,34 @@ export default function ReadingPracticeView() {
               return isCTW ? (
                 <>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                    Read the passage. Each _ represents one missing letter (e.g. <code>inves_ _ _ _ _ _</code> = <em>investigate</em>). Type the complete word.
+                    Type only the missing letters directly in each blank.
                   </Typography>
-                  <Box sx={{ mb: 3, p: 2, borderRadius: 2, borderLeft: '3px solid', borderColor: 'primary.main', bgcolor: 'action.hover', lineHeight: 1.9 }}>
-                    <Typography variant="body1">{formatPassageText(q.passageText, q.blanks ?? [])}</Typography>
-                  </Box>
-                  <Box sx={{ mb: 3 }}>
-                    {q.blanks?.map((blank, bi) => (
-                      <Box key={bi} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                        <Chip label={toSpacedDisplay(blank.incomplete, blank.answer)} size="small" color="primary" variant="outlined" sx={{ flexShrink: 0 }} />
-                        <TextField
-                          value={ctwAnswers[bi] || ''}
-                          onChange={(e) => {
-                            const next = [...ctwAnswers]
-                            next[bi] = e.target.value
-                            setCtwAnswers(next)
-                          }}
-                          label={`Complete word ${bi + 1}`}
-                          size="small"
-                          sx={{ maxWidth: 220 }}
-                          disabled={displayFeedback}
-                          onKeyDown={(e) => { if (e.key === 'Enter' && ctwAllFilled && !displayFeedback) submitAnswer() }}
-                        />
-                        {/* Per-blank icons only available on fresh submit (lastResult has userAnswers) */}
-                        {showFeedback && lastResult?.isCTW && (
-                          lastResult.userAnswers[bi]?.toLowerCase().trim() === blank.answer.toLowerCase()
-                            ? <CheckCircleIcon color="success" fontSize="small" />
-                            : <CancelIcon color="error" fontSize="small" />
-                        )}
-                      </Box>
-                    ))}
+                  <Box sx={{ mb: 3, p: 2, borderRadius: 2, borderLeft: '3px solid', borderColor: 'primary.main', bgcolor: 'action.hover', lineHeight: 2.8, fontSize: '1rem' }}>
+                    <Typography variant="body1" component="p">
+                      {renderPassageWithInputs(
+                        q.passageText,
+                        q.blanks ?? [],
+                        ctwAnswers,
+                        (bi, val) => { const n = [...ctwAnswers]; n[bi] = val; setCtwAnswers(n) },
+                        displayFeedback,
+                        showFeedback && lastResult?.isCTW
+                          ? lastResult.blanks.map((b, bi) => {
+                              const prefix = b.incomplete.replace(/_{2,}$/, '')
+                              return lastResult.userAnswers[bi]?.toLowerCase().trim() === b.answer.slice(prefix.length).toLowerCase()
+                                ? 'correct' : 'incorrect'
+                            })
+                          : answered[idx] ? q?.blanks?.map(() => 'correct') : null
+                      )}
+                    </Typography>
                   </Box>
                   {displayFeedback && (
                     <Alert severity={ctwCorrect ? 'success' : 'error'} sx={{ mb: 2 }}>
                       {ctwCorrect
                         ? 'All blanks correct!'
-                        : <>Incorrect. Correct answers: <strong>{q.blanks?.map((b) => b.answer).join(', ')}</strong></>}
+                        : <>Incorrect. Correct missing letters: <strong>{q.blanks?.map((b) => {
+                            const prefix = b.incomplete.replace(/_{2,}$/, '')
+                            return b.answer.slice(prefix.length)
+                          }).join(', ')}</strong></>}
                     </Alert>
                   )}
                   {!displayFeedback ? (

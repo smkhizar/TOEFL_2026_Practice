@@ -175,7 +175,6 @@ export default function ReadingPracticeView() {
     setLastResult(null)
     setResumeDialog(false)
     setPendingResume(null)
-    deleteSession()
     timer.reset(TOTAL_TIME)
     timer.start(() => finalizeRef.current())
   }
@@ -567,7 +566,7 @@ export default function ReadingPracticeView() {
         </Card>
       )}
 
-      <Button variant="text" onClick={restart}>↺ Restart</Button>
+      <Button variant="text" onClick={() => { deleteSession(); restart() }}>↺ Restart</Button>
 
       {/* Resume session dialog */}
       <Dialog open={resumeDialog} onClose={() => { setResumeDialog(false); setPendingResume(null) }}>

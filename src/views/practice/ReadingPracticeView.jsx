@@ -111,6 +111,7 @@ export default function ReadingPracticeView() {
   const [resumeDialog, setResumeDialog] = useState(false)
   const [pendingResume, setPendingResume] = useState(null)
   const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState('')
 
   // Supabase session helpers — read uid fresh from store to avoid stale closure
   const upsertSession = (data) => {
@@ -361,6 +362,7 @@ export default function ReadingPracticeView() {
   const generateQuestion = async () => {
     if (!q || generating) return
     setGenerating(true)
+    setGenerateError('')
     try {
       const res = await fetch('/api/generate-question', {
         method: 'POST',
@@ -370,13 +372,12 @@ export default function ReadingPracticeView() {
       const data = await res.json()
       if (!res.ok || !data.question) throw new Error(data.error || 'Generation failed')
       await saveCustom(stageKey, stageIndex, data.question)
-      // Reset answer state for this question slot
       setSelected(null)
       setCtwAnswers(new Array((data.question.blanks ?? []).length).fill(''))
       setShowFeedback(false)
       setLastResult(null)
     } catch (e) {
-      console.error('Generate failed:', e)
+      setGenerateError(e.message)
     } finally {
       setGenerating(false)
     }
@@ -426,6 +427,12 @@ export default function ReadingPracticeView() {
       {finished && (
         <Alert severity="success" sx={{ mb: 2 }}>
           Score: <strong>{score}/{pool.length}</strong> ({pct}%) · Estimated Band: <strong>{band}</strong> · Stage 2: <strong>{stage2Mode}</strong>
+        </Alert>
+      )}
+
+      {generateError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setGenerateError('')}>
+          Generate failed: {generateError}
         </Alert>
       )}
 

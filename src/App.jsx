@@ -212,6 +212,8 @@ export default function App() {
     )
   }
 
+  const isAuthPage = !user
+
   const drawerSx = {
     '& .MuiDrawer-paper': {
       width: DRAWER_WIDTH,
@@ -223,8 +225,8 @@ export default function App() {
 
   return (
     <Box sx={{ display: 'flex' }}>
-      {/* AppBar */}
-      <AppBar
+      {/* AppBar — hidden on auth page */}
+      <AppBar sx={{ display: isAuthPage ? 'none' : undefined }}
         position="fixed"
         elevation={0}
         sx={{
@@ -291,8 +293,8 @@ export default function App() {
         </Toolbar>
       </AppBar>
 
-      {/* Permanent drawer (desktop) */}
-      {!isMobile && (
+      {/* Permanent drawer (desktop) — hidden on auth page */}
+      {!isMobile && !isAuthPage && (
         <Drawer
           variant="permanent"
           sx={{ width: DRAWER_WIDTH, flexShrink: 0, ...drawerSx, '& .MuiDrawer-paper': { ...drawerSx['& .MuiDrawer-paper'], top: '60px', height: 'calc(100% - 60px)' } }}
@@ -301,8 +303,8 @@ export default function App() {
         </Drawer>
       )}
 
-      {/* Temporary drawer (mobile) */}
-      {isMobile && (
+      {/* Temporary drawer (mobile) — hidden on auth page */}
+      {isMobile && !isAuthPage && (
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -320,10 +322,10 @@ export default function App() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, sm: 3 },
-          mt: '60px',
-          ml: isMobile ? 0 : `${DRAWER_WIDTH}px`,
-          minHeight: 'calc(100vh - 60px)',
+          p: isAuthPage ? 0 : { xs: 2, sm: 3 },
+          mt: isAuthPage ? 0 : '60px',
+          ml: isAuthPage ? 0 : (isMobile ? 0 : `${DRAWER_WIDTH}px`),
+          minHeight: '100vh',
           maxWidth: '100%',
           background: 'linear-gradient(135deg, #080b14 0%, #0d1021 100%)',
         }}

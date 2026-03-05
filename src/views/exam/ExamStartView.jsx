@@ -24,6 +24,21 @@ const listeningMap = Object.fromEntries(
 const writingMap = Object.fromEntries(allWritingTasks.map((t) => [t.id, t]))
 const speakingMap = Object.fromEntries(allSpeakingTasks.map((t) => [t.id, t]))
 
+function toSpacedDisplay(incomplete, answer) {
+  const prefix = incomplete.replace(/_{2,}$/, '')
+  const missingCount = answer.length - prefix.length
+  if (missingCount <= 0) return prefix
+  return prefix + Array(missingCount).fill('_').join(' ')
+}
+
+function formatPassageText(passageText, blanks) {
+  let text = passageText
+  blanks.forEach((blank) => {
+    text = text.replace(blank.incomplete, toSpacedDisplay(blank.incomplete, blank.answer))
+  })
+  return text
+}
+
 const PHASE_LABELS = {
   reading_s1: 'Read S1', reading_s2: 'Read S2',
   listening_s1: 'Listen S1', listening_s2: 'Listen S2',
@@ -471,15 +486,15 @@ export default function ExamStartView() {
             {isCTWItem && (
               <>
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                  Each truncated word (e.g. <code>inves___</code>) is missing its ending. Type the complete word.
+                  Each _ represents one missing letter (e.g. <code>inves_ _ _ _ _ _</code> = <em>investigate</em>). Type the complete word.
                 </Typography>
                 <Box sx={{ mb: 3, p: 2, borderRadius: 2, borderLeft: '3px solid', borderColor: 'primary.main', bgcolor: 'action.hover', lineHeight: 1.9 }}>
-                  <Typography variant="body1">{currentItem.passageText}</Typography>
+                  <Typography variant="body1">{formatPassageText(currentItem.passageText, currentItem.blanks ?? [])}</Typography>
                 </Box>
                 <Box sx={{ mb: 3 }}>
                   {currentItem.blanks?.map((blank, bi) => (
                     <Box key={bi} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                      <Chip label={blank.incomplete} size="small" color="primary" variant="outlined" sx={{ flexShrink: 0 }} />
+                      <Chip label={toSpacedDisplay(blank.incomplete, blank.answer)} size="small" color="primary" variant="outlined" sx={{ flexShrink: 0 }} />
                       <TextField
                         value={ctwAnswers[bi] || ''}
                         onChange={(e) => {

@@ -15,6 +15,23 @@ import SectionTimer from '../../components/SectionTimer'
 
 const TOTAL_TIME = 30 * 60
 
+// Returns the display form of a CTW blank with one underscore per missing character.
+// e.g. toSpacedDisplay('inves___', 'investigate') → 'inves_ _ _ _ _ _'
+function toSpacedDisplay(incomplete, answer) {
+  const prefix = incomplete.replace(/_{2,}$/, '')
+  const missingCount = answer.length - prefix.length
+  if (missingCount <= 0) return prefix
+  return prefix + Array(missingCount).fill('_').join(' ')
+}
+
+function formatPassageText(passageText, blanks) {
+  let text = passageText
+  blanks.forEach((blank) => {
+    text = text.replace(blank.incomplete, toSpacedDisplay(blank.incomplete, blank.answer))
+  })
+  return text
+}
+
 export default function ReadingPracticeView() {
   const progress = useProgressStore()
   const userId = useAuthStore((s) => s.user?.id)
@@ -210,15 +227,15 @@ export default function ReadingPracticeView() {
             {isCTW ? (
               <>
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                  Read the passage. Each truncated word (e.g. <code>inves___</code>) has a blank. Type the complete word.
+                  Read the passage. Each _ represents one missing letter (e.g. <code>inves_ _ _ _ _ _</code> = <em>investigate</em>). Type the complete word.
                 </Typography>
                 <Box sx={{ mb: 3, p: 2, borderRadius: 2, borderLeft: '3px solid', borderColor: 'primary.main', bgcolor: 'action.hover', lineHeight: 1.9 }}>
-                  <Typography variant="body1">{q.passageText}</Typography>
+                  <Typography variant="body1">{formatPassageText(q.passageText, q.blanks ?? [])}</Typography>
                 </Box>
                 <Box sx={{ mb: 3 }}>
                   {q.blanks?.map((blank, bi) => (
                     <Box key={bi} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                      <Chip label={blank.incomplete} size="small" color="primary" variant="outlined" sx={{ flexShrink: 0 }} />
+                      <Chip label={toSpacedDisplay(blank.incomplete, blank.answer)} size="small" color="primary" variant="outlined" sx={{ flexShrink: 0 }} />
                       <TextField
                         value={ctwAnswers[bi] || ''}
                         onChange={(e) => {
@@ -304,7 +321,7 @@ export default function ReadingPracticeView() {
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{item.passageText}</Typography>
                         {item.blanks?.map((b, bi) => (
                           <Typography key={bi} variant="body2" sx={{ mb: 0.5 }}>
-                            {b.incomplete} → Correct: <strong style={{ color: '#4caf50' }}>{b.answer}</strong>
+                            {toSpacedDisplay(b.incomplete, b.answer)} → Correct: <strong style={{ color: '#4caf50' }}>{b.answer}</strong>
                           </Typography>
                         ))}
                       </>

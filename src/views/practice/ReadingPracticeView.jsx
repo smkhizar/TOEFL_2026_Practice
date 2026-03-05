@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card,
-  CardContent, Chip, FormControl, FormControlLabel, Radio, RadioGroup, TextField, Typography,
+  CardContent, Chip, Dialog, DialogActions, DialogContent, DialogContentText,
+  DialogTitle, FormControl, FormControlLabel, Radio, RadioGroup, TextField, Typography,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -12,6 +13,7 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { useTimer } from '../../hooks/useTimer'
 import { getBandEstimate } from '../../hooks/useBandEstimate'
 import SectionTimer from '../../components/SectionTimer'
+import { supabase } from '../../lib/supabase'
 
 const TOTAL_TIME = 30 * 60
 
@@ -49,6 +51,21 @@ export default function ReadingPracticeView() {
   const [responses, setResponses] = useState({})
   const [showFeedback, setShowFeedback] = useState(false)
   const [lastResult, setLastResult] = useState(null) // { correct, correctAnswer, yourAnswer }
+  const [resumeDialog, setResumeDialog] = useState(false)
+  const [pendingResume, setPendingResume] = useState(null)
+
+  // Supabase session helpers
+  const upsertSession = (data) => {
+    if (!userId) return
+    supabase.from('reading_sessions').upsert(
+      { user_id: userId, session_data: data, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    )
+  }
+  const deleteSession = () => {
+    if (!userId) return
+    supabase.from('reading_sessions').delete().eq('user_id', userId)
+  }
 
   // Refs for latest state in timer callback
   const stateRef = useRef({})
@@ -76,6 +93,7 @@ export default function ReadingPracticeView() {
   }, [finished]) // eslint-disable-line
 
   const finalize = () => {
+    deleteSession()
     setFinished(true)
     timer.stop()
   }
@@ -97,11 +115,54 @@ export default function ReadingPracticeView() {
     setResponses({})
     setShowFeedback(false)
     setLastResult(null)
+    setResumeDialog(false)
+    setPendingResume(null)
+    deleteSession()
     timer.reset(TOTAL_TIME)
     timer.start(() => finalizeRef.current())
   }
 
   useEffect(() => { restart() }, []) // eslint-disable-line
+
+  // Check Supabase for a saved in-progress session when user logs in
+  useEffect(() => {
+    if (!userId) return
+    supabase
+      .from('reading_sessions')
+      .select('session_data')
+      .eq('user_id', userId)
+      .single()
+      .then(({ data, error }) => {
+        if (!error && data?.session_data) {
+          setPendingResume(data.session_data)
+          setResumeDialog(true)
+        }
+      })
+  }, [userId]) // eslint-disable-line
+
+  const applyResume = () => {
+    const d = pendingResume
+    let restoredPool
+    if (d.stage2Mode === 'pending') restoredPool = [...readingAdaptive.stage1]
+    else if (d.stage2Mode === 'hard') restoredPool = [...readingAdaptive.stage1, ...readingAdaptive.stage2Hard]
+    else restoredPool = [...readingAdaptive.stage1, ...readingAdaptive.stage2Easy]
+
+    setPool(restoredPool)
+    setIdx(d.idx)
+    setScore(d.score)
+    setStage2Mode(d.stage2Mode)
+    setStage1Score(d.stage1Score)
+    setResponses(d.responses)
+    setAnswered(d.answered)
+    setSelected(d.responses[d.idx] ?? null)
+    setShowFeedback(false)
+    setLastResult(null)
+    setFinished(false)
+    setResumeDialog(false)
+    setPendingResume(null)
+    timer.reset(TOTAL_TIME)
+    timer.start(() => finalizeRef.current())
+  }
 
   // Reset CTW/selection when question changes
   useEffect(() => {
@@ -146,6 +207,16 @@ export default function ReadingPracticeView() {
     setResponses(newResponses)
     setScore(newScore)
 
+    // Persist to Supabase so session survives browser/device changes
+    upsertSession({
+      idx,
+      score: newScore,
+      stage2Mode,
+      stage1Score,
+      responses: newResponses,
+      answered: newAnswered,
+    })
+
     // Build feedback info
     if (item.type === 'Complete the Words') {
       setLastResult({
@@ -176,24 +247,28 @@ export default function ReadingPracticeView() {
     setLastResult(null)
 
     if (idx < pool.length - 1) {
-      setIdx(idx + 1)
+      const nextIdx = idx + 1
+      setIdx(nextIdx)
       setSelected(null)
       setCtwAnswers([])
+      upsertSession({ idx: nextIdx, score: newScore, stage2Mode, stage1Score, responses, answered })
       return
     }
 
     if (stage2Mode === 'pending') {
       const threshold = Math.ceil(readingAdaptive.stage1.length * 0.5)
       const newMode = newScore >= threshold ? 'hard' : 'easy'
+      const nextIdx = idx + 1
       setStage1Score(newScore)
       setStage2Mode(newMode)
       setPool((prev) => [
         ...prev,
         ...(newMode === 'hard' ? readingAdaptive.stage2Hard : readingAdaptive.stage2Easy),
       ])
-      setIdx(idx + 1)
+      setIdx(nextIdx)
       setSelected(null)
       setCtwAnswers([])
+      upsertSession({ idx: nextIdx, score: newScore, stage2Mode: newMode, stage1Score: newScore, responses, answered })
       return
     }
 
@@ -313,6 +388,8 @@ export default function ReadingPracticeView() {
                     <Button variant="contained" onClick={advance}>
                       {idx === pool.length - 1 ? 'Finish Section' : 'Continue →'}
                     </Button>
+                  ) : idx < pool.length - 1 ? (
+                    <Button variant="outlined" onClick={() => setIdx(idx + 1)}>Next →</Button>
                   ) : null}
                 </>
               ) : (
@@ -362,6 +439,8 @@ export default function ReadingPracticeView() {
                       <Button variant="contained" onClick={advance}>
                         {idx === pool.length - 1 ? 'Finish Section' : 'Continue →'}
                       </Button>
+                    ) : idx < pool.length - 1 ? (
+                      <Button variant="outlined" onClick={() => setIdx(idx + 1)}>Next →</Button>
                     ) : null}
                   </Box>
                 </>
@@ -428,6 +507,24 @@ export default function ReadingPracticeView() {
       )}
 
       <Button variant="text" onClick={restart}>↺ Restart</Button>
+
+      {/* Resume session dialog */}
+      <Dialog open={resumeDialog} onClose={() => { setResumeDialog(false); setPendingResume(null) }}>
+        <DialogTitle>Resume previous session?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            You have an unfinished reading session at question{' '}
+            <strong>{pendingResume ? pendingResume.idx + 1 : ''}</strong>.
+            Would you like to continue where you left off?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setResumeDialog(false); setPendingResume(null); deleteSession() }}>
+            Start Fresh
+          </Button>
+          <Button variant="contained" onClick={applyResume}>Resume</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

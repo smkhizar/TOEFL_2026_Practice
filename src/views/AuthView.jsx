@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress,
@@ -13,6 +13,7 @@ import HeadphonesIcon from '@mui/icons-material/Headphones'
 import MicIcon from '@mui/icons-material/Mic'
 import EditIcon from '@mui/icons-material/Edit'
 import { useAuthStore } from '../store/useAuthStore'
+import { supabase } from '../lib/supabase'
 
 const features = [
   { icon: <MenuBookIcon sx={{ fontSize: 18 }} />, label: 'Reading', desc: '83 adaptive questions — 3 types' },
@@ -33,14 +34,23 @@ export default function AuthView() {
   const location = useLocation()
   const from = location.state?.from?.pathname ?? '/'
 
-  const { signIn, signUp, signInWithGoogle } = useAuthStore()
+  const { signIn, signUp, signInWithGoogle, resetPassword, updatePassword } = useAuthStore()
 
-  const [mode, setMode] = useState('signin') // 'signin' | 'signup'
+  const [mode, setMode] = useState('signin') // 'signin' | 'signup' | 'forgot' | 'reset'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
+
+  // Detect Supabase PASSWORD_RECOVERY event (user clicked reset link in email)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setMode('reset')
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   const switchMode = (m) => { setMode(m); setError(''); setSuccessMsg('') }
 
@@ -53,10 +63,17 @@ export default function AuthView() {
       if (mode === 'signin') {
         await signIn(email, password)
         navigate(from, { replace: true })
-      } else {
+      } else if (mode === 'signup') {
         await signUp(email, password)
         setSuccessMsg('Account created! Check your email to confirm, then sign in.')
         setMode('signin')
+      } else if (mode === 'forgot') {
+        await resetPassword(email)
+        setSuccessMsg('Reset link sent — check your email.')
+      } else if (mode === 'reset') {
+        await updatePassword(newPassword)
+        setSuccessMsg('Password updated! Signing you in…')
+        setTimeout(() => navigate('/', { replace: true }), 1500)
       }
     } catch (err) {
       setError(err.message ?? 'Something went wrong.')
@@ -217,43 +234,49 @@ export default function AuthView() {
           p: { xs: 3, sm: 4 },
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
         }}>
-          {/* Tab switcher */}
-          <Box sx={{
-            display: 'flex',
-            background: 'rgba(255,255,255,0.05)',
-            borderRadius: 2,
-            p: 0.5,
-            mb: 4,
-          }}>
-            {['signin', 'signup'].map((m) => (
-              <Box
-                key={m}
-                onClick={() => switchMode(m)}
-                sx={{
-                  flex: 1, textAlign: 'center', py: 1, borderRadius: 1.5,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  background: mode === m ? 'linear-gradient(135deg, rgba(0,188,212,0.3), rgba(92,107,192,0.3))' : 'transparent',
-                  border: mode === m ? '1px solid rgba(0,188,212,0.3)' : '1px solid transparent',
-                }}
-              >
-                <Typography sx={{
-                  fontSize: 13, fontWeight: 600,
-                  color: mode === m ? '#fff' : 'rgba(255,255,255,0.4)',
-                  transition: 'color 0.2s',
-                }}>
-                  {m === 'signin' ? 'Sign In' : 'Create Account'}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
+          {/* Tab switcher — hidden on forgot/reset */}
+          {(mode === 'signin' || mode === 'signup') && (
+            <Box sx={{
+              display: 'flex',
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: 2,
+              p: 0.5,
+              mb: 4,
+            }}>
+              {['signin', 'signup'].map((m) => (
+                <Box
+                  key={m}
+                  onClick={() => switchMode(m)}
+                  sx={{
+                    flex: 1, textAlign: 'center', py: 1, borderRadius: 1.5,
+                    cursor: 'pointer', transition: 'all 0.2s',
+                    background: mode === m ? 'linear-gradient(135deg, rgba(0,188,212,0.3), rgba(92,107,192,0.3))' : 'transparent',
+                    border: mode === m ? '1px solid rgba(0,188,212,0.3)' : '1px solid transparent',
+                  }}
+                >
+                  <Typography sx={{
+                    fontSize: 13, fontWeight: 600,
+                    color: mode === m ? '#fff' : 'rgba(255,255,255,0.4)',
+                    transition: 'color 0.2s',
+                  }}>
+                    {m === 'signin' ? 'Sign In' : 'Create Account'}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
 
           <Typography sx={{ fontWeight: 700, fontSize: '1.4rem', mb: 0.5, color: '#fff' }}>
-            {mode === 'signin' ? 'Welcome back' : 'Get started free'}
+            {mode === 'signin' ? 'Welcome back'
+              : mode === 'signup' ? 'Get started free'
+              : mode === 'forgot' ? 'Reset your password'
+              : 'Set a new password'}
           </Typography>
           <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, mb: 3 }}>
-            {mode === 'signin'
-              ? 'Sign in to continue your TOEFL journey'
-              : 'Create an account to save your progress'}
+            {mode === 'signin' ? 'Sign in to continue your TOEFL journey'
+              : mode === 'signup' ? 'Create an account to save your progress'
+              : mode === 'forgot' ? 'Enter your email and we\'ll send a reset link'
+              : 'Choose a new password for your account'}
           </Typography>
 
           {error && (
@@ -268,65 +291,119 @@ export default function AuthView() {
           )}
 
           <form onSubmit={handleSubmit}>
-            <TextField
-              label="Email address"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              fullWidth
-              autoComplete="email"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <EmailOutlinedIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.3)' }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                mb: 2,
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: 'rgba(255,255,255,0.04)',
-                  borderRadius: 2,
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-                  '&:hover fieldset': { borderColor: 'rgba(0,188,212,0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#00bcd4' },
-                },
-                '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)' },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#00bcd4' },
-                '& input': { color: '#fff' },
-              }}
-            />
-            <TextField
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              fullWidth
-              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-              inputProps={{ minLength: 6 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.3)' }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                mb: 3,
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: 'rgba(255,255,255,0.04)',
-                  borderRadius: 2,
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-                  '&:hover fieldset': { borderColor: 'rgba(0,188,212,0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#00bcd4' },
-                },
-                '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)' },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#00bcd4' },
-                '& input': { color: '#fff' },
-              }}
-            />
+            {/* Email field — shown on signin, signup, forgot */}
+            {mode !== 'reset' && (
+              <TextField
+                label="Email address"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                fullWidth
+                autoComplete="email"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <EmailOutlinedIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.3)' }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    borderRadius: 2,
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+                    '&:hover fieldset': { borderColor: 'rgba(0,188,212,0.4)' },
+                    '&.Mui-focused fieldset': { borderColor: '#00bcd4' },
+                  },
+                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)' },
+                  '& .MuiInputLabel-root.Mui-focused': { color: '#00bcd4' },
+                  '& input': { color: '#fff' },
+                }}
+              />
+            )}
+
+            {/* Password field — shown on signin and signup */}
+            {(mode === 'signin' || mode === 'signup') && (
+              <TextField
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                fullWidth
+                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                inputProps={{ minLength: 6 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockOutlinedIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.3)' }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  mb: mode === 'signin' ? 1 : 3,
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    borderRadius: 2,
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+                    '&:hover fieldset': { borderColor: 'rgba(0,188,212,0.4)' },
+                    '&.Mui-focused fieldset': { borderColor: '#00bcd4' },
+                  },
+                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)' },
+                  '& .MuiInputLabel-root.Mui-focused': { color: '#00bcd4' },
+                  '& input': { color: '#fff' },
+                }}
+              />
+            )}
+
+            {/* Forgot password link — only on signin, below password */}
+            {mode === 'signin' && (
+              <Box sx={{ textAlign: 'right', mb: 2.5 }}>
+                <Typography
+                  component="span"
+                  onClick={() => switchMode('forgot')}
+                  sx={{ fontSize: 12, color: '#00bcd4', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                >
+                  Forgot password?
+                </Typography>
+              </Box>
+            )}
+
+            {/* New password field — shown on reset */}
+            {mode === 'reset' && (
+              <TextField
+                label="New password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                fullWidth
+                autoComplete="new-password"
+                inputProps={{ minLength: 6 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockOutlinedIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.3)' }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    borderRadius: 2,
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+                    '&:hover fieldset': { borderColor: 'rgba(0,188,212,0.4)' },
+                    '&.Mui-focused fieldset': { borderColor: '#00bcd4' },
+                  },
+                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)' },
+                  '& .MuiInputLabel-root.Mui-focused': { color: '#00bcd4' },
+                  '& input': { color: '#fff' },
+                }}
+              />
+            )}
 
             <Button
               type="submit"
@@ -356,43 +433,61 @@ export default function AuthView() {
             >
               {loading
                 ? <CircularProgress size={20} color="inherit" />
-                : mode === 'signin' ? 'Sign In' : 'Create Account'}
+                : mode === 'signin' ? 'Sign In'
+                : mode === 'signup' ? 'Create Account'
+                : mode === 'forgot' ? 'Send Reset Link'
+                : 'Set New Password'}
             </Button>
           </form>
 
-          <Divider sx={{
-            my: 2.5,
-            '&::before, &::after': { borderColor: 'rgba(255,255,255,0.09)' },
-            '& .MuiDivider-wrapper': { color: 'rgba(255,255,255,0.3)', fontSize: 12 },
-          }}>
-            or continue with
-          </Divider>
+          {/* Back to sign in — on forgot */}
+          {mode === 'forgot' && (
+            <Typography
+              onClick={() => switchMode('signin')}
+              sx={{ textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.4)', cursor: 'pointer', mb: 2, '&:hover': { color: '#fff' } }}
+            >
+              ← Back to sign in
+            </Typography>
+          )}
 
-          <Button
-            fullWidth
-            onClick={handleGoogle}
-            disabled={loading}
-            startIcon={<GoogleIcon sx={{ fontSize: '20px !important' }} />}
-            sx={{
-              py: 1.4,
-              borderRadius: 2,
-              fontWeight: 600,
-              fontSize: 14,
-              textTransform: 'none',
-              color: '#fff',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              transition: 'all 0.2s',
-              '&:hover': {
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                transform: 'translateY(-1px)',
-              },
-              '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' },
-            }}
-          >
-            Continue with Google
-          </Button>
+          {/* Google + footer — only on signin/signup */}
+          {(mode === 'signin' || mode === 'signup') && (
+            <>
+              <Divider sx={{
+                my: 2.5,
+                '&::before, &::after': { borderColor: 'rgba(255,255,255,0.09)' },
+                '& .MuiDivider-wrapper': { color: 'rgba(255,255,255,0.3)', fontSize: 12 },
+              }}>
+                or continue with
+              </Divider>
+
+              <Button
+                fullWidth
+                onClick={handleGoogle}
+                disabled={loading}
+                startIcon={<GoogleIcon sx={{ fontSize: '20px !important' }} />}
+                sx={{
+                  py: 1.4,
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  textTransform: 'none',
+                  color: '#fff',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    transform: 'translateY(-1px)',
+                  },
+                  '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' },
+                }}
+              >
+                Continue with Google
+              </Button>
+            </>
+          )}
 
           <Typography sx={{ textAlign: 'center', mt: 3, fontSize: 12, color: 'rgba(255,255,255,0.25)' }}>
             By signing in, you agree to practice really hard for TOEFL 2026 🎯

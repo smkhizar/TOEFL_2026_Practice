@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card,
-  CardContent, Chip, FormControl, FormControlLabel, Radio, RadioGroup,
+  CardContent, Chip, CircularProgress, FormControl, FormControlLabel, Radio, RadioGroup,
   Switch, Typography,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -215,8 +215,9 @@ export default function ListeningPracticeView() {
                   disabled={generating || finished}
                   onClick={generateQuestion}
                   sx={{ minWidth: 0, px: 1.5, py: 0.3, fontSize: 12 }}
+                  startIcon={generating ? <CircularProgress size={12} color="inherit" /> : null}
                 >
-                  {generating ? '…' : '✦ Generate'}
+                  {generating ? 'Generating…' : '✦ Generate'}
                 </Button>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -228,6 +229,13 @@ export default function ListeningPracticeView() {
                 />
               </Box>
             </Box>
+
+            {generating ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 5, gap: 2 }}>
+                <CircularProgress size={36} />
+                <Typography variant="body2" color="text.secondary">Generating new question…</Typography>
+              </Box>
+            ) : <>
 
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
               {q.audioUrl && !audioFailed[q.id] ? (
@@ -265,6 +273,7 @@ export default function ListeningPracticeView() {
                 {idx === pool.length - 1 ? 'Finish Section' : 'Next'}
               </Button>
             </Box>
+            </>}
           </CardContent>
         </Card>
       )}

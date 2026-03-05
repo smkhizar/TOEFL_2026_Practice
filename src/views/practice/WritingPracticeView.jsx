@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import {
-  Alert, Box, Button, Card, CardContent, Chip, Snackbar, TextField, Typography,
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Snackbar, TextField, Typography,
 } from '@mui/material'
 import { writingTasks } from '../../data/writing'
 import { useTimer } from '../../hooks/useTimer'
@@ -206,8 +206,9 @@ export default function WritingPracticeView() {
                   disabled={generating || submitted}
                   onClick={generateQuestion}
                   sx={{ minWidth: 0, px: 1.5, py: 0.3, fontSize: 12 }}
+                  startIcon={generating ? <CircularProgress size={12} color="inherit" /> : null}
                 >
-                  {generating ? '…' : '✦ Generate'}
+                  {generating ? 'Generating…' : '✦ Generate'}
                 </Button>
               </Box>
               <Typography variant="caption" color="text.secondary" display="block">
@@ -219,8 +220,15 @@ export default function WritingPracticeView() {
             )}
           </Box>
 
+          {generating && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 5, gap: 2 }}>
+              <CircularProgress size={36} />
+              <Typography variant="body2" color="text.secondary">Generating new task…</Typography>
+            </Box>
+          )}
+
           {/* Build a Sentence */}
-          {task.type === 'Build a Sentence' && (
+          {!generating && task.type === 'Build a Sentence' && (
             <Box sx={{ mb: 3 }}>
               <Typography fontWeight={500} sx={{ mb: 2 }}>
                 Arrange the phrase chunks into the correct sentence:
@@ -281,7 +289,7 @@ export default function WritingPracticeView() {
           )}
 
           {/* Write an Email */}
-          {task.type === 'Write an Email' && (
+          {!generating && task.type === 'Write an Email' && (
             <Box sx={{ mb: 2 }}>
               <Box sx={{ mb: 2, p: 2, borderRadius: 2, borderLeft: '3px solid', borderColor: 'primary.main', bgcolor: 'action.hover' }}>
                 <Typography variant="overline">Scenario</Typography>
@@ -323,7 +331,7 @@ export default function WritingPracticeView() {
           )}
 
           {/* Academic Discussion */}
-          {task.type === 'Academic Discussion' && (
+          {!generating && task.type === 'Academic Discussion' && (
             <Box sx={{ mb: 2 }}>
               <Typography fontWeight={500} sx={{ mb: 2, whiteSpace: 'pre-line' }}>{task.prompt}</Typography>
               {task.context && (
@@ -354,7 +362,7 @@ export default function WritingPracticeView() {
           )}
 
           {/* Sample response */}
-          {submitted && task.sample && (
+          {!generating && submitted && task.sample && (
             <Box sx={{ mb: 2 }}>
               <Button size="small" variant="text" onClick={() => setShowSample(!showSample)}>
                 {showSample ? 'Hide' : 'Show'} sample response
@@ -367,14 +375,14 @@ export default function WritingPracticeView() {
             </Box>
           )}
 
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          {!generating && <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <Button variant="contained" disabled={!canSubmit} onClick={submit}>
               {submitting ? 'Submitting…' : 'Submit Task'}
             </Button>
             <Button variant="outlined" disabled={submitting} onClick={nextTask}>
               Next Task →
             </Button>
-          </Box>
+          </Box>}
         </CardContent>
       </Card>
 

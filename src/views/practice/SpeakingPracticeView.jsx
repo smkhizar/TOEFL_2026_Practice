@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import {
-  Box, Button, Card, CardContent, Chip, Grid, LinearProgress,
+  Box, Button, Card, CardContent, Chip, CircularProgress, Grid, LinearProgress,
   Snackbar, TextField, Typography,
 } from '@mui/material'
 import { speakingTasks } from '../../data/speaking'
@@ -252,8 +252,9 @@ export default function SpeakingPracticeView() {
                   disabled={generating || recording}
                   onClick={generateQuestion}
                   sx={{ minWidth: 0, px: 1.5, py: 0.3, fontSize: 12 }}
+                  startIcon={generating ? <CircularProgress size={12} color="inherit" /> : null}
                 >
-                  {generating ? '…' : '✦ Generate'}
+                  {generating ? 'Generating…' : '✦ Generate'}
                 </Button>
               </Box>
               <Typography variant="caption" color="text.secondary" display="block">
@@ -264,8 +265,15 @@ export default function SpeakingPracticeView() {
             <Chip size="small" variant="outlined" label={`~${currentExpectedSeconds}s`} />
           </Box>
 
+          {generating && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 5, gap: 2 }}>
+              <CircularProgress size={36} />
+              <Typography variant="body2" color="text.secondary">Generating new task…</Typography>
+            </Box>
+          )}
+
           {/* Listen and Repeat */}
-          {task?.type === 'Listen and Repeat' && (
+          {!generating && task?.type === 'Listen and Repeat' && (
             <>
               {task.scene && (
                 <Typography variant="caption" color="text.secondary" fontStyle="italic" display="block" sx={{ mb: 1 }}>
@@ -282,7 +290,7 @@ export default function SpeakingPracticeView() {
           )}
 
           {/* Take an Interview */}
-          {task?.type === 'Take an Interview' && task.questions && (
+          {!generating && task?.type === 'Take an Interview' && task.questions && (
             <>
               {/* Sub-question progress */}
               <Box sx={{ display: 'flex', gap: 0.5, mb: 2 }}>
@@ -309,7 +317,7 @@ export default function SpeakingPracticeView() {
           )}
 
           {/* Controls */}
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+          {!generating && <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
             <Button
               variant="outlined"
               color="secondary"
@@ -343,7 +351,7 @@ export default function SpeakingPracticeView() {
               {task?.type === 'Take an Interview' && interviewSubIdx < (task.questions?.length ?? 1) - 1
                 ? 'Skip Topic →' : 'Skip →'}
             </Button>
-          </Box>
+          </Box>}
 
           <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 2 }}>
             <Typography variant="caption" color="text.secondary">Mic: <strong>{micPermission}</strong></Typography>

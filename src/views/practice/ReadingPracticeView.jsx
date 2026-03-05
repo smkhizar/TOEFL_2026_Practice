@@ -47,6 +47,8 @@ export default function ReadingPracticeView() {
   const [finished, setFinished] = useState(false)
   const [answered, setAnswered] = useState({})
   const [responses, setResponses] = useState({})
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [lastResult, setLastResult] = useState(null) // { correct, correctAnswer, yourAnswer }
 
   // Refs for latest state in timer callback
   const stateRef = useRef({})
@@ -93,6 +95,8 @@ export default function ReadingPracticeView() {
     setFinished(false)
     setAnswered({})
     setResponses({})
+    setShowFeedback(false)
+    setLastResult(null)
     timer.reset(TOTAL_TIME)
     timer.start(() => finalizeRef.current())
   }
@@ -112,6 +116,8 @@ export default function ReadingPracticeView() {
   const jump = (i) => {
     setIdx(i)
     setSelected(responses[i] ?? null)
+    setShowFeedback(false)
+    setLastResult(null)
   }
 
   const submitAnswer = () => {
@@ -140,6 +146,35 @@ export default function ReadingPracticeView() {
     setResponses(newResponses)
     setScore(newScore)
 
+    // Build feedback info
+    if (item.type === 'Complete the Words') {
+      setLastResult({
+        correct: correct === 1,
+        isCTW: true,
+        blanks: item.blanks,
+        userAnswers: [...ctwAnswers],
+      })
+    } else {
+      setLastResult({
+        correct: correct === 1,
+        isCTW: false,
+        correctAnswer: item.options?.[item.answer],
+        yourAnswer: item.options?.[selected],
+      })
+    }
+    setShowFeedback(true)
+
+    // Stash advance info for when user clicks Continue
+    pendingAdvanceRef.current = { newScore, newResponses, newAnswered }
+  }
+
+  const pendingAdvanceRef = useRef(null)
+
+  const advance = () => {
+    const { newScore, newAnswered } = pendingAdvanceRef.current ?? {}
+    setShowFeedback(false)
+    setLastResult(null)
+
     if (idx < pool.length - 1) {
       setIdx(idx + 1)
       setSelected(null)
@@ -152,8 +187,8 @@ export default function ReadingPracticeView() {
       const newMode = newScore >= threshold ? 'hard' : 'easy'
       setStage1Score(newScore)
       setStage2Mode(newMode)
-      setPool([
-        ...pool,
+      setPool((prev) => [
+        ...prev,
         ...(newMode === 'hard' ? readingAdaptive.stage2Hard : readingAdaptive.stage2Easy),
       ])
       setIdx(idx + 1)
@@ -224,74 +259,114 @@ export default function ReadingPracticeView() {
               <Typography variant="caption" color="text.secondary">{q.type}</Typography>
             </Box>
 
-            {isCTW ? (
-              <>
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                  Read the passage. Each _ represents one missing letter (e.g. <code>inves_ _ _ _ _ _</code> = <em>investigate</em>). Type the complete word.
-                </Typography>
-                <Box sx={{ mb: 3, p: 2, borderRadius: 2, borderLeft: '3px solid', borderColor: 'primary.main', bgcolor: 'action.hover', lineHeight: 1.9 }}>
-                  <Typography variant="body1">{formatPassageText(q.passageText, q.blanks ?? [])}</Typography>
-                </Box>
-                <Box sx={{ mb: 3 }}>
-                  {q.blanks?.map((blank, bi) => (
-                    <Box key={bi} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                      <Chip label={toSpacedDisplay(blank.incomplete, blank.answer)} size="small" color="primary" variant="outlined" sx={{ flexShrink: 0 }} />
-                      <TextField
-                        value={ctwAnswers[bi] || ''}
-                        onChange={(e) => {
-                          const next = [...ctwAnswers]
-                          next[bi] = e.target.value
-                          setCtwAnswers(next)
-                        }}
-                        label={`Complete word ${bi + 1}`}
-                        size="small"
-                        sx={{ maxWidth: 220 }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && ctwAllFilled) submitAnswer() }}
-                      />
-                      {answered[idx] && (
-                        ctwAnswers[bi]?.toLowerCase().trim() === blank.answer.toLowerCase()
-                          ? <CheckCircleIcon color="success" fontSize="small" />
-                          : <CancelIcon color="error" fontSize="small" />
-                      )}
-                    </Box>
-                  ))}
-                </Box>
-                {answered[idx] && (
-                  <Alert severity={responses[idx] === 1 ? 'success' : 'error'} sx={{ mb: 2 }}>
-                    {responses[idx] === 1
-                      ? 'All blanks correct!'
-                      : `Correct answers: ${q.blanks?.map((b) => b.answer).join(', ')}`}
-                  </Alert>
-                )}
-                <Button variant="contained" disabled={!ctwAllFilled} onClick={submitAnswer}>
-                  {idx === pool.length - 1 ? 'Finish Section' : 'Next'}
-                </Button>
-              </>
-            ) : (
-              <>
-                {q.passage && (
-                  <Box sx={{ mb: 3, p: 2, borderRadius: 2, borderLeft: '3px solid', borderColor: 'primary.main', bgcolor: 'action.hover' }}>
-                    <Typography variant="body2">{q.passage}</Typography>
+            {(() => {
+              // Show feedback if just submitted OR jumping back to an already-answered question
+              const displayFeedback = showFeedback || !!answered[idx]
+              const storedResponse = responses[idx]
+              const ctwCorrect = storedResponse === 1
+              const mcqCorrect = storedResponse === q?.answer
+
+              return isCTW ? (
+                <>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                    Read the passage. Each _ represents one missing letter (e.g. <code>inves_ _ _ _ _ _</code> = <em>investigate</em>). Type the complete word.
+                  </Typography>
+                  <Box sx={{ mb: 3, p: 2, borderRadius: 2, borderLeft: '3px solid', borderColor: 'primary.main', bgcolor: 'action.hover', lineHeight: 1.9 }}>
+                    <Typography variant="body1">{formatPassageText(q.passageText, q.blanks ?? [])}</Typography>
                   </Box>
-                )}
-                <Typography fontWeight={500} sx={{ mb: 3 }}>{q.prompt}</Typography>
-                <FormControl>
-                  <RadioGroup
-                    value={selected ?? ''}
-                    onChange={(e) => setSelected(Number(e.target.value))}
-                  >
-                    {q.options?.map((opt, i) => (
-                      <FormControlLabel key={i} value={i} control={<Radio />} label={opt} sx={{ mb: 0.5 }} />
+                  <Box sx={{ mb: 3 }}>
+                    {q.blanks?.map((blank, bi) => (
+                      <Box key={bi} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                        <Chip label={toSpacedDisplay(blank.incomplete, blank.answer)} size="small" color="primary" variant="outlined" sx={{ flexShrink: 0 }} />
+                        <TextField
+                          value={ctwAnswers[bi] || ''}
+                          onChange={(e) => {
+                            const next = [...ctwAnswers]
+                            next[bi] = e.target.value
+                            setCtwAnswers(next)
+                          }}
+                          label={`Complete word ${bi + 1}`}
+                          size="small"
+                          sx={{ maxWidth: 220 }}
+                          disabled={displayFeedback}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && ctwAllFilled && !displayFeedback) submitAnswer() }}
+                        />
+                        {/* Per-blank icons only available on fresh submit (lastResult has userAnswers) */}
+                        {showFeedback && lastResult?.isCTW && (
+                          lastResult.userAnswers[bi]?.toLowerCase().trim() === blank.answer.toLowerCase()
+                            ? <CheckCircleIcon color="success" fontSize="small" />
+                            : <CancelIcon color="error" fontSize="small" />
+                        )}
+                      </Box>
                     ))}
-                  </RadioGroup>
-                </FormControl>
-                <Box sx={{ mt: 3 }}>
-                  <Button variant="contained" disabled={selected === null} onClick={submitAnswer}>
-                    {idx === pool.length - 1 ? 'Finish Section' : 'Next'}
-                  </Button>
-                </Box>
-              </>
-            )}
+                  </Box>
+                  {displayFeedback && (
+                    <Alert severity={ctwCorrect ? 'success' : 'error'} sx={{ mb: 2 }}>
+                      {ctwCorrect
+                        ? 'All blanks correct!'
+                        : <>Incorrect. Correct answers: <strong>{q.blanks?.map((b) => b.answer).join(', ')}</strong></>}
+                    </Alert>
+                  )}
+                  {!displayFeedback ? (
+                    <Button variant="contained" disabled={!ctwAllFilled} onClick={submitAnswer}>Submit</Button>
+                  ) : showFeedback ? (
+                    <Button variant="contained" onClick={advance}>
+                      {idx === pool.length - 1 ? 'Finish Section' : 'Continue →'}
+                    </Button>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  {q.passage && (
+                    <Box sx={{ mb: 3, p: 2, borderRadius: 2, borderLeft: '3px solid', borderColor: 'primary.main', bgcolor: 'action.hover' }}>
+                      <Typography variant="body2">{q.passage}</Typography>
+                    </Box>
+                  )}
+                  <Typography fontWeight={500} sx={{ mb: 3 }}>{q.prompt}</Typography>
+                  <FormControl>
+                    <RadioGroup
+                      value={selected ?? ''}
+                      onChange={(e) => { if (!displayFeedback) setSelected(Number(e.target.value)) }}
+                    >
+                      {q.options?.map((opt, i) => (
+                        <FormControlLabel
+                          key={i}
+                          value={i}
+                          control={<Radio />}
+                          label={
+                            displayFeedback ? (
+                              <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                {opt}
+                                {i === q.answer && <CheckCircleIcon color="success" fontSize="small" />}
+                                {i === storedResponse && i !== q.answer && <CancelIcon color="error" fontSize="small" />}
+                              </Box>
+                            ) : opt
+                          }
+                          sx={{ mb: 0.5 }}
+                          disabled={displayFeedback}
+                        />
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                  {displayFeedback && (
+                    <Alert severity={mcqCorrect ? 'success' : 'error'} sx={{ mt: 2, mb: 1 }}>
+                      {mcqCorrect
+                        ? 'Correct!'
+                        : <>Incorrect. Correct answer: <strong>{q.options?.[q.answer]}</strong></>}
+                    </Alert>
+                  )}
+                  <Box sx={{ mt: 2 }}>
+                    {!displayFeedback ? (
+                      <Button variant="contained" disabled={selected === null} onClick={submitAnswer}>Submit</Button>
+                    ) : showFeedback ? (
+                      <Button variant="contained" onClick={advance}>
+                        {idx === pool.length - 1 ? 'Finish Section' : 'Continue →'}
+                      </Button>
+                    ) : null}
+                  </Box>
+                </>
+              )
+            })()}
           </CardContent>
         </Card>
       )}

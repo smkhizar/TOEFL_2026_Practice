@@ -14,6 +14,7 @@ import { useTimer } from '../../hooks/useTimer'
 import { getBandEstimate } from '../../hooks/useBandEstimate'
 import SectionTimer from '../../components/SectionTimer'
 import { supabase } from '../../lib/supabase'
+import { useCustomQuestions } from '../../hooks/useCustomQuestions'
 
 const TOTAL_TIME = 30 * 60
 
@@ -92,6 +93,7 @@ function renderPassageWithInputs(passageText, blanks, values, onChangeAt, disabl
 export default function ReadingPracticeView() {
   const progress = useProgressStore()
   const userId = useAuthStore((s) => s.user?.id)
+  const { customMap, saveCustom } = useCustomQuestions('reading')
   const timer = useTimer(TOTAL_TIME)
 
   const [stage2Mode, setStage2Mode] = useState('pending')
@@ -108,18 +110,17 @@ export default function ReadingPracticeView() {
   const [lastResult, setLastResult] = useState(null) // { correct, correctAnswer, yourAnswer }
   const [resumeDialog, setResumeDialog] = useState(false)
   const [pendingResume, setPendingResume] = useState(null)
+  const [generating, setGenerating] = useState(false)
 
   // Supabase session helpers — read uid fresh from store to avoid stale closure
   const upsertSession = (data) => {
     const uid = useAuthStore.getState().user?.id
-    console.log('[upsertSession] uid:', uid)
     if (!uid) return
     supabase.from('reading_sessions').upsert(
       { user_id: uid, session_data: data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     ).then(({ error }) => {
       if (error) console.error('[upsertSession] failed:', error)
-      else console.log('[upsertSession] saved ok')
     })
   }
   const deleteSession = () => {
@@ -132,7 +133,11 @@ export default function ReadingPracticeView() {
   const stateRef = useRef({})
   stateRef.current = { pool, score, stage2Mode, responses }
 
-  const q = pool[idx]
+  const _rawQ = pool[idx]
+  const stageKey = idx < readingAdaptive.stage1.length ? 'stage1'
+    : stage2Mode === 'hard' ? 'stage2Hard' : 'stage2Easy'
+  const stageIndex = idx < readingAdaptive.stage1.length ? idx : idx - readingAdaptive.stage1.length
+  const q = customMap[stageKey]?.[stageIndex] ?? _rawQ
   const isCTW = q?.type === 'Complete the Words'
   const ctwAllFilled = isCTW && q?.blanks
     ? q.blanks.every((b, i) => {
@@ -353,6 +358,30 @@ export default function ReadingPracticeView() {
   const pct = pool.length ? Math.round((score / pool.length) * 100) : 0
   const band = getBandEstimate(pct)
 
+  const generateQuestion = async () => {
+    if (!q || generating) return
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/generate-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: 'reading', type: q.type }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.question) throw new Error(data.error || 'Generation failed')
+      await saveCustom(stageKey, stageIndex, data.question)
+      // Reset answer state for this question slot
+      setSelected(null)
+      setCtwAnswers(new Array((data.question.blanks ?? []).length).fill(''))
+      setShowFeedback(false)
+      setLastResult(null)
+    } catch (e) {
+      console.error('Generate failed:', e)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <Box>
       <Typography variant="h4" gutterBottom>Reading Practice</Typography>
@@ -404,9 +433,23 @@ export default function ReadingPracticeView() {
       {!finished && q && (
         <Card elevation={0} sx={{ borderRadius: 3, mb: 2 }}>
           <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Typography variant="overline">Question {idx + 1} / {pool.length}</Typography>
-              <Typography variant="caption" color="text.secondary">{q.type}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="caption" color="text.secondary">{q.type}</Typography>
+                {customMap[stageKey]?.[stageIndex] && (
+                  <Chip size="small" label="AI" color="secondary" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
+                )}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={generating || finished}
+                  onClick={generateQuestion}
+                  sx={{ minWidth: 0, px: 1.5, py: 0.3, fontSize: 12 }}
+                >
+                  {generating ? '…' : '✦ Generate'}
+                </Button>
+              </Box>
             </Box>
 
             {(() => {

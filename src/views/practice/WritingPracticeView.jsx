@@ -7,6 +7,7 @@ import { useTimer } from '../../hooks/useTimer'
 import SectionTimer from '../../components/SectionTimer'
 import { useProgressStore } from '../../store/useProgressStore'
 import { useAuthStore } from '../../store/useAuthStore'
+import { useCustomQuestions } from '../../hooks/useCustomQuestions'
 
 const taskTypes = ['all', 'Build a Sentence', 'Write an Email', 'Academic Discussion']
 
@@ -25,6 +26,7 @@ const formatTime = (sec) => {
 export default function WritingPracticeView() {
   const progress = useProgressStore()
   const userId = useAuthStore((s) => s.user?.id)
+  const { customMap, saveCustom } = useCustomQuestions('writing')
   const [filterType, setFilterType] = useState('all')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [response, setResponse] = useState('')
@@ -34,13 +36,16 @@ export default function WritingPracticeView() {
   const [showSample, setShowSample] = useState(false)
   const [completedIds, setCompletedIds] = useState(new Set())
   const [arrangedChunks, setArrangedChunks] = useState([])
+  const [generating, setGenerating] = useState(false)
 
   const filteredTasks = useMemo(
     () => (filterType === 'all' ? writingTasks : writingTasks.filter((t) => t.type === filterType)),
     [filterType]
   )
 
-  const task = filteredTasks[currentIndex] || writingTasks[0]
+  const _rawTask = filteredTasks[currentIndex] || writingTasks[0]
+  const writingAbsIndex = writingTasks.indexOf(_rawTask)
+  const task = customMap['tasks']?.[writingAbsIndex] ?? _rawTask
   const timer = useTimer(task.time)
 
   const shuffledChunks = useMemo(() => {
@@ -127,6 +132,26 @@ export default function WritingPracticeView() {
     resetTaskState()
   }
 
+  const generateQuestion = async () => {
+    if (!task || generating) return
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/generate-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: 'writing', type: task.type }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.question) throw new Error(data.error || 'Generation failed')
+      await saveCustom('tasks', writingAbsIndex, data.question)
+      resetTaskState()
+    } catch (e) {
+      console.error('Generate failed:', e)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <Box>
       <Typography variant="h4" gutterBottom>Writing Practice</Typography>
@@ -170,7 +195,21 @@ export default function WritingPracticeView() {
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
             <Box>
-              <Chip label={task.type} size="small" color={taskTypeColor(task.type)} variant="outlined" sx={{ mb: 0.5 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <Chip label={task.type} size="small" color={taskTypeColor(task.type)} variant="outlined" />
+                {customMap['tasks']?.[writingAbsIndex] && (
+                  <Chip size="small" label="AI" color="secondary" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
+                )}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={generating || submitted}
+                  onClick={generateQuestion}
+                  sx={{ minWidth: 0, px: 1.5, py: 0.3, fontSize: 12 }}
+                >
+                  {generating ? '…' : '✦ Generate'}
+                </Button>
+              </Box>
               <Typography variant="caption" color="text.secondary" display="block">
                 Task {currentIndex + 1} of {filteredTasks.length} · Timer: {formatTime(task.time)}
               </Typography>

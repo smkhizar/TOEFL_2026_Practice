@@ -6,10 +6,12 @@ import {
 import { speakingTasks } from '../../data/speaking'
 import { useProgressStore } from '../../store/useProgressStore'
 import { useAuthStore } from '../../store/useAuthStore'
+import { useCustomQuestions } from '../../hooks/useCustomQuestions'
 
 export default function SpeakingPracticeView() {
   const progress = useProgressStore()
   const userId = useAuthStore((s) => s.user?.id)
+  const { customMap, saveCustom } = useCustomQuestions('speaking')
   const tasks = speakingTasks
 
   const [current, setCurrent] = useState(0)
@@ -23,12 +25,13 @@ export default function SpeakingPracticeView() {
   const [savedToast, setSavedToast] = useState(false)
   const [errorToast, setErrorToast] = useState(false)
   const [completedTasks, setCompletedTasks] = useState({})
+  const [generating, setGenerating] = useState(false)
 
   const mediaRecorderRef = useRef(null)
   const intervalRef = useRef(null)
   const recognitionRef = useRef(null)
 
-  const task = tasks[current]
+  const task = customMap['tasks']?.[current] ?? tasks[current]
   const currentQuestion = useMemo(() => {
     if (task?.type !== 'Take an Interview' || !task.questions) return null
     return task.questions[interviewSubIdx]
@@ -170,6 +173,29 @@ export default function SpeakingPracticeView() {
     }
   }, []) // eslint-disable-line
 
+  const generateQuestion = async () => {
+    if (!task || generating) return
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/generate-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: 'speaking', type: task.type }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.question) throw new Error(data.error || 'Generation failed')
+      await saveCustom('tasks', current, data.question)
+      // Reset recording state for new task
+      setTranscript('')
+      setDuration(0)
+      setInterviewSubIdx(0)
+    } catch (e) {
+      console.error('Generate failed:', e)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   const rubricItems = [
     { label: 'Fluency', value: rubric.fluency, color: 'primary' },
     { label: 'Completeness', value: rubric.completeness, color: 'info' },
@@ -210,13 +236,26 @@ export default function SpeakingPracticeView() {
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
             <Box>
-              <Chip
-                size="small"
-                color={task?.type === 'Listen and Repeat' ? 'info' : 'secondary'}
-                variant="outlined"
-                label={task?.type}
-                sx={{ mb: 0.5 }}
-              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <Chip
+                  size="small"
+                  color={task?.type === 'Listen and Repeat' ? 'info' : 'secondary'}
+                  variant="outlined"
+                  label={task?.type}
+                />
+                {customMap['tasks']?.[current] && (
+                  <Chip size="small" label="AI" color="secondary" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
+                )}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={generating || recording}
+                  onClick={generateQuestion}
+                  sx={{ minWidth: 0, px: 1.5, py: 0.3, fontSize: 12 }}
+                >
+                  {generating ? '…' : '✦ Generate'}
+                </Button>
+              </Box>
               <Typography variant="caption" color="text.secondary" display="block">
                 Task {current + 1} of {tasks.length}
                 {task?.topic ? ` · Topic: ${task.topic}` : ''}

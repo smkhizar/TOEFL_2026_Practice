@@ -13,12 +13,14 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { useTimer } from '../../hooks/useTimer'
 import { getBandEstimate } from '../../hooks/useBandEstimate'
 import SectionTimer from '../../components/SectionTimer'
+import { useCustomQuestions } from '../../hooks/useCustomQuestions'
 
 const TOTAL_TIME = 22 * 60
 
 export default function ListeningPracticeView() {
   const progress = useProgressStore()
   const userId = useAuthStore((s) => s.user?.id)
+  const { customMap, saveCustom } = useCustomQuestions('listening')
   const timer = useTimer(TOTAL_TIME)
 
   const [stage2Mode, setStage2Mode] = useState('pending')
@@ -32,11 +34,16 @@ export default function ListeningPracticeView() {
   const [answered, setAnswered] = useState({})
   const [responses, setResponses] = useState({})
   const [audioFailed, setAudioFailed] = useState({})
+  const [generating, setGenerating] = useState(false)
 
   const stateRef = useRef({})
   stateRef.current = { pool, score, stage2Mode, responses }
 
-  const q = pool[idx]
+  const _rawQ = pool[idx]
+  const listenStageKey = idx < listeningAdaptive.stage1.length ? 'stage1'
+    : stage2Mode === 'hard' ? 'stage2Hard' : 'stage2Easy'
+  const listenStageIndex = idx < listeningAdaptive.stage1.length ? idx : idx - listeningAdaptive.stage1.length
+  const q = customMap[listenStageKey]?.[listenStageIndex] ?? _rawQ
   const pct = pool.length ? Math.round((score / pool.length) * 100) : 0
   const band = getBandEstimate(pct)
 
@@ -128,6 +135,26 @@ export default function ListeningPracticeView() {
     finalize()
   }
 
+  const generateQuestion = async () => {
+    if (!q || generating) return
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/generate-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: 'listening', type: q.type }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.question) throw new Error(data.error || 'Generation failed')
+      await saveCustom(listenStageKey, listenStageIndex, data.question)
+      setSelected(null)
+    } catch (e) {
+      console.error('Generate failed:', e)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <Box>
       <Typography variant="h4" gutterBottom>Listening Practice</Typography>
@@ -177,7 +204,21 @@ export default function ListeningPracticeView() {
         <Card elevation={0} sx={{ borderRadius: 3, mb: 2 }}>
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="overline">Question {idx + 1} / {pool.length} · {q.type}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="overline">Question {idx + 1} / {pool.length} · {q.type}</Typography>
+                {customMap[listenStageKey]?.[listenStageIndex] && (
+                  <Chip size="small" label="AI" color="secondary" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
+                )}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={generating || finished}
+                  onClick={generateQuestion}
+                  sx={{ minWidth: 0, px: 1.5, py: 0.3, fontSize: 12 }}
+                >
+                  {generating ? '…' : '✦ Generate'}
+                </Button>
+              </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Typography variant="caption">Transcript</Typography>
                 <Switch

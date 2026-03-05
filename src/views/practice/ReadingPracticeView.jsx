@@ -49,9 +49,9 @@ function renderPassageWithInputs(passageText, blanks, values, onChangeAt, disabl
           onChange={(e) => { if (!disabled) onChangeAt(bi, e.target.value) }}
           disabled={disabled}
           maxLength={missingCount}
-          placeholder={'_'.repeat(missingCount)}
+          placeholder={Array(missingCount).fill('_').join(' ')}
           style={{
-            width: `${Math.max(missingCount * 13, 30)}px`,
+            width: `${Math.max(missingCount * 18, 30)}px`,
             border: 'none',
             borderBottom: `2px solid ${borderColor}`,
             background: 'transparent',

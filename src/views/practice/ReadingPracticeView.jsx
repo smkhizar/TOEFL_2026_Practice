@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card,
-  CardContent, Chip, Dialog, DialogActions, DialogContent, DialogContentText,
+  CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText,
   DialogTitle, FormControl, FormControlLabel, Radio, RadioGroup, Typography,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -440,7 +440,7 @@ export default function ReadingPracticeView() {
       {!finished && q && (
         <Card elevation={0} sx={{ borderRadius: 3, mb: 2 }}>
           <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Typography variant="overline">Question {idx + 1} / {pool.length}</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Typography variant="caption" color="text.secondary">{q.type}</Typography>
@@ -453,11 +453,20 @@ export default function ReadingPracticeView() {
                   disabled={generating || finished}
                   onClick={generateQuestion}
                   sx={{ minWidth: 0, px: 1.5, py: 0.3, fontSize: 12 }}
+                  startIcon={generating ? <CircularProgress size={12} color="inherit" /> : null}
                 >
-                  {generating ? '…' : '✦ Generate'}
+                  {generating ? 'Generating…' : '✦ Generate'}
                 </Button>
               </Box>
             </Box>
+
+          {generating && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 5, gap: 2 }}>
+              <CircularProgress size={36} />
+              <Typography variant="body2" color="text.secondary">Generating new question…</Typography>
+            </Box>
+          )}
+          {!generating && <>
 
             {(() => {
               // Show feedback if just submitted OR jumping back to an already-answered question
@@ -563,6 +572,7 @@ export default function ReadingPracticeView() {
                 </>
               )
             })()}
+          </>}
           </CardContent>
         </Card>
       )}

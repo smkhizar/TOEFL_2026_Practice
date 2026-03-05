@@ -8,14 +8,36 @@ Return ONLY valid JSON — no markdown, no explanation, no code fences.`
 const PROMPTS = {
   reading: {
     'Complete the Words': `Generate a TOEFL 2026 "Complete the Words" reading question.
-Schema: { "id": "cgen_<random6>", "type": "Complete the Words", "passageText": "<sentence with 2 truncated words shown as prefix___>", "blanks": [{ "incomplete": "<prefix___>", "answer": "<full word>" }, { "incomplete": "<prefix___>", "answer": "<full word>" }] }
-Rules:
-- passageText must be an academic or daily-life sentence
-- Each truncated word shows 3-5 letters then ___ (e.g. "inves___", "uni___")
-- answer is the full word (e.g. "investigate", "university")
-- The ___ represents ONLY the missing ending letters
-- Use 2 blanks per passage
-Return JSON only.`,
+
+CRITICAL FORMAT — read carefully:
+- Show the FIRST 3-5 letters of a word, then ___ at the END to hide the remaining letters.
+- "incomplete" = first few letters + ___ at the end. NEVER put ___ at the start or middle.
+- "answer" = the complete full word.
+- In passageText, replace each full word with its "incomplete" form.
+
+CORRECT examples:
+  "investigate" → incomplete: "inves___"   answer: "investigate"
+  "university"  → incomplete: "uni___"     answer: "university"
+  "library"     → incomplete: "lib___"     answer: "library"
+  "government"  → incomplete: "gov___"     answer: "government"
+  "environment" → incomplete: "envir___"   answer: "environment"
+
+WRONG (never do this):
+  ____nment   ← ___ must NOT be at the start
+  envir__ment ← ___ must NOT be in the middle
+
+Return this exact JSON structure:
+{
+  "id": "cgen_abc123",
+  "type": "Complete the Words",
+  "passageText": "Researchers inves___ how peo___ acquire language skills.",
+  "blanks": [
+    { "incomplete": "inves___", "answer": "investigate" },
+    { "incomplete": "peo___",   "answer": "people" }
+  ]
+}
+
+Use 2 blanks. Academic or daily-life sentence. Return JSON only.`,
 
     'Read in Daily Life': `Generate a TOEFL 2026 "Read in Daily Life" reading question.
 Schema: { "id": "rgen_<random6>", "type": "Read in Daily Life", "passage": "<short real-world text: notice, email, sign, message>", "prompt": "<comprehension question>", "options": ["<A>","<B>","<C>","<D>"], "answer": <0-3 index of correct option> }
@@ -111,6 +133,28 @@ Return JSON only.`,
   },
 }
 
+// Post-process CTW questions to ensure prefix___ format (never ___suffix)
+function fixCTWQuestion(q) {
+  if (q.type !== 'Complete the Words' || !Array.isArray(q.blanks)) return q
+  let passageText = q.passageText || ''
+  const fixedBlanks = q.blanks.map((blank) => {
+    const { incomplete, answer } = blank
+    // Already correct: ends with ___
+    if (incomplete && incomplete.endsWith('___')) return blank
+    // Wrong format: ___ at start (e.g. "____nment" for "environment")
+    // Convert to prefix___ by taking first 4 chars of the answer
+    if (answer && incomplete) {
+      const visible = incomplete.replace(/_/g, '') // letters that are shown (at the end)
+      const prefix = answer.slice(0, Math.max(3, answer.length - visible.length))
+      const fixed = prefix + '___'
+      passageText = passageText.replace(incomplete, fixed)
+      return { incomplete: fixed, answer }
+    }
+    return blank
+  })
+  return { ...q, passageText, blanks: fixedBlanks }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -162,7 +206,8 @@ export default async function handler(req, res) {
 
     // Strip any accidental markdown code fences
     const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim()
-    const question = JSON.parse(cleaned)
+    let question = JSON.parse(cleaned)
+    question = fixCTWQuestion(question)
 
     return res.status(200).json({ question })
   } catch (e) {

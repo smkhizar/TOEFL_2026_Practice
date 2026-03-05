@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Box, Button, Card, CardContent, Chip, Grid, LinearProgress, Typography,
+  Box, Button, Chip, Grid, LinearProgress, Typography,
 } from '@mui/material'
 import { useProgressStore } from '../../store/useProgressStore'
 import { getBandEstimate } from '../../hooks/useBandEstimate'
@@ -33,160 +33,165 @@ export default function ExamReviewView() {
   const readingAdaptiveColor = last?.reading?.adaptive === 'hard' ? 'error' : 'info'
   const listeningAdaptiveColor = last?.listening?.adaptive === 'hard' ? 'error' : 'info'
 
+  const glassBox = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, p: 2.5, height: '100%' }
+
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Mock Test {id} — Results</Typography>
-      <Typography color="text.secondary" sx={{ mb: 4 }}>2026 format review · Adaptive scoring</Typography>
+      <Typography sx={{
+        fontWeight: 800, fontSize: { xs: '1.7rem', md: '2rem' },
+        background: 'linear-gradient(135deg, #ffffff 30%, rgba(124,77,255,0.9) 100%)',
+        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+        mb: 0.5,
+      }}>
+        Mock Test {id} — Results
+      </Typography>
+      <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, mb: 4 }}>
+        2026 format review · Adaptive scoring
+      </Typography>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {/* Reading */}
         <Grid item xs={12} md={6}>
-          <Card elevation={0} sx={{ borderRadius: 3, height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography variant="overline">Reading</Typography>
-                <Chip
-                  size="small"
-                  label={`Stage 2: ${last?.reading?.adaptive || '—'}`}
-                  color={readingAdaptiveColor}
-                  variant="outlined"
+          <Box sx={glassBox}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="overline">Reading</Typography>
+              <Chip
+                size="small"
+                label={`Stage 2: ${last?.reading?.adaptive || '—'}`}
+                color={readingAdaptiveColor}
+                variant="outlined"
+              />
+            </Box>
+            <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+              {last?.reading?.correct ?? 0} / {readingTotal}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>correct answers</Typography>
+            {readingTotal > 0 && (
+              <>
+                <LinearProgress
+                  variant="determinate"
+                  value={readingPct}
+                  sx={{ height: 8, borderRadius: 4, mb: 1 }}
                 />
-              </Box>
-              <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-                {last?.reading?.correct ?? 0} / {readingTotal}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>correct answers</Typography>
-              {readingTotal > 0 && (
-                <>
-                  <LinearProgress
-                    variant="determinate"
-                    value={readingPct}
-                    sx={{ height: 8, borderRadius: 4, mb: 1 }}
-                  />
-                  <Typography variant="caption">
-                    {readingPct}% accuracy · Band estimate: <strong>{readingBand}</strong>
-                  </Typography>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                <Typography variant="caption">
+                  {readingPct}% accuracy · Band estimate: <strong>{readingBand}</strong>
+                </Typography>
+              </>
+            )}
+          </Box>
         </Grid>
 
         {/* Listening */}
         <Grid item xs={12} md={6}>
-          <Card elevation={0} sx={{ borderRadius: 3, height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography variant="overline">Listening</Typography>
-                <Chip
-                  size="small"
-                  label={`Stage 2: ${last?.listening?.adaptive || '—'}`}
-                  color={listeningAdaptiveColor}
-                  variant="outlined"
+          <Box sx={glassBox}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="overline">Listening</Typography>
+              <Chip
+                size="small"
+                label={`Stage 2: ${last?.listening?.adaptive || '—'}`}
+                color={listeningAdaptiveColor}
+                variant="outlined"
+              />
+            </Box>
+            <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+              {last?.listening?.correct ?? 0} / {listeningTotal}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>correct answers</Typography>
+            {listeningTotal > 0 && (
+              <>
+                <LinearProgress
+                  variant="determinate"
+                  value={listeningPct}
+                  sx={{ height: 8, borderRadius: 4, mb: 1 }}
                 />
-              </Box>
-              <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-                {last?.listening?.correct ?? 0} / {listeningTotal}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>correct answers</Typography>
-              {listeningTotal > 0 && (
-                <>
-                  <LinearProgress
-                    variant="determinate"
-                    value={listeningPct}
-                    sx={{ height: 8, borderRadius: 4, mb: 1 }}
-                  />
-                  <Typography variant="caption">
-                    {listeningPct}% accuracy · Band estimate: <strong>{listeningBand}</strong>
-                  </Typography>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                <Typography variant="caption">
+                  {listeningPct}% accuracy · Band estimate: <strong>{listeningBand}</strong>
+                </Typography>
+              </>
+            )}
+          </Box>
         </Grid>
 
         {/* Writing */}
         <Grid item xs={12} md={6}>
-          <Card elevation={0} sx={{ borderRadius: 3, height: '100%' }}>
-            <CardContent>
-              <Typography variant="overline" display="block" sx={{ mb: 1 }}>Writing</Typography>
-              {last?.writing?.tasks?.length ? (
-                last.writing.tasks.map((task, i) => (
-                  <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                    <Box>
-                      <Typography variant="body2" fontWeight={500}>{task.type}</Typography>
-                      <Typography variant="caption" color="text.secondary">Task {i + 1}</Typography>
-                    </Box>
-                    <Chip
-                      size="small"
-                      label={task.submitted ? `${task.words} words` : 'Not submitted'}
-                      color={task.submitted ? 'success' : 'warning'}
-                      variant="outlined"
-                    />
+          <Box sx={glassBox}>
+            <Typography variant="overline" display="block" sx={{ mb: 1 }}>Writing</Typography>
+            {last?.writing?.tasks?.length ? (
+              last.writing.tasks.map((task, i) => (
+                <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Box>
+                    <Typography variant="body2" fontWeight={500}>{task.type}</Typography>
+                    <Typography variant="caption" color="text.secondary">Task {i + 1}</Typography>
                   </Box>
-                ))
-              ) : (
-                <Typography variant="body2" color="text.secondary">No writing data recorded</Typography>
-              )}
-            </CardContent>
-          </Card>
+                  <Chip
+                    size="small"
+                    label={task.submitted ? `${task.words} words` : 'Not submitted'}
+                    color={task.submitted ? 'success' : 'warning'}
+                    variant="outlined"
+                  />
+                </Box>
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary">No writing data recorded</Typography>
+            )}
+          </Box>
         </Grid>
 
         {/* Speaking */}
         <Grid item xs={12} md={6}>
-          <Card elevation={0} sx={{ borderRadius: 3, height: '100%' }}>
-            <CardContent>
-              <Typography variant="overline" display="block" sx={{ mb: 1 }}>Speaking</Typography>
-              {last?.speaking?.tasks?.length ? (
-                <>
-                  <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-                    {last.speaking.tasks.length} / 11
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                    tasks completed
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                    {last.speaking.tasks.map((task, i) => (
-                      <Chip
-                        key={i}
-                        size="small"
-                        label={`${task.type === 'Listen and Repeat' ? 'L&R' : 'Interview'} ${i + 1}`}
-                        color={task.type === 'Listen and Repeat' ? 'info' : 'secondary'}
-                        variant="outlined"
-                      />
-                    ))}
-                  </Box>
-                </>
-              ) : (
-                <Typography variant="body2" color="text.secondary">No speaking data recorded</Typography>
-              )}
-            </CardContent>
-          </Card>
+          <Box sx={glassBox}>
+            <Typography variant="overline" display="block" sx={{ mb: 1 }}>Speaking</Typography>
+            {last?.speaking?.tasks?.length ? (
+              <>
+                <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+                  {last.speaking.tasks.length} / {last.speaking.tasks.length}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                  tasks completed
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {last.speaking.tasks.map((task, i) => (
+                    <Chip
+                      key={i}
+                      size="small"
+                      label={`${task.type === 'Listen and Repeat' ? 'L&R' : 'Interview'} ${i + 1}`}
+                      color={task.type === 'Listen and Repeat' ? 'info' : 'secondary'}
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary">No speaking data recorded</Typography>
+            )}
+          </Box>
         </Grid>
       </Grid>
 
       {/* Summary */}
-      <Card elevation={0} sx={{ borderRadius: 3, p: 1 }}>
-        <CardContent>
-          <Typography variant="overline" display="block" sx={{ mb: 0.5 }}>Overall Summary</Typography>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-            Estimated Band: {overallBand}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-            Based on Reading + Listening accuracy · TOEFL 2026 1–6 scale
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Total mock exams completed: {s.mockExamsTaken}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Button variant="contained" color="primary" onClick={() => navigate('/exam')}>
-              Back to Mock Exams
-            </Button>
-            <Button variant="outlined" onClick={() => navigate('/')}>Dashboard</Button>
-            <Button variant="text" onClick={() => navigate('/analytics')}>View Analytics</Button>
-          </Box>
-        </CardContent>
-      </Card>
+      <Box sx={{ ...glassBox, height: 'auto' }}>
+        <Typography variant="overline" display="block" sx={{ mb: 0.5 }}>Overall Summary</Typography>
+        <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+          Estimated Band: {overallBand}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+          Based on Reading + Listening accuracy · TOEFL 2026 1–6 scale
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Total mock exams completed: {s.mockExamsTaken}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Button
+            variant="contained"
+            onClick={() => navigate('/exam')}
+            sx={{ background: 'linear-gradient(135deg, #00bcd4, #5c6bc0)', textTransform: 'none', fontWeight: 600 }}
+          >
+            Back to Mock Exams
+          </Button>
+          <Button variant="outlined" onClick={() => navigate('/')} sx={{ textTransform: 'none' }}>Dashboard</Button>
+          <Button variant="text" onClick={() => navigate('/analytics')} sx={{ textTransform: 'none', color: 'rgba(255,255,255,0.5)' }}>View Analytics</Button>
+        </Box>
+      </Box>
     </Box>
   )
 }

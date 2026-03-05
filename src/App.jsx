@@ -226,10 +226,11 @@ export default function App() {
   return (
     <Box sx={{ display: 'flex' }}>
       {/* AppBar — hidden on auth page */}
-      <AppBar sx={{ display: isAuthPage ? 'none' : undefined }}
+      <AppBar
         position="fixed"
         elevation={0}
         sx={{
+          display: isAuthPage ? 'none' : undefined,
           zIndex: theme.zIndex.drawer + 1,
           background: 'rgba(8,11,20,0.85)',
           backdropFilter: 'blur(16px)',
@@ -349,6 +350,13 @@ export default function App() {
               <Route path="/exam/:id/review"     element={<RequireAuth><ExamReviewView /></RequireAuth>} />
               <Route path="/analytics"           element={<RequireAuth><AnalyticsView /></RequireAuth>} />
               <Route path="/settings"            element={<RequireAuth><SettingsView /></RequireAuth>} />
+              <Route path="*" element={
+                <Box sx={{ p: 6, textAlign: 'center' }}>
+                  <Typography variant="h4" fontWeight={700} sx={{ mb: 1 }}>404</Typography>
+                  <Typography color="text.secondary" sx={{ mb: 3 }}>Page not found.</Typography>
+                  <Button variant="contained" onClick={() => window.location.href = '/'}>Go to Dashboard</Button>
+                </Box>
+              } />
             </Routes>
           </Suspense>
         </ErrorBoundary>

@@ -15,7 +15,7 @@ import { getBandEstimate } from '../../hooks/useBandEstimate'
 import SectionTimer from '../../components/SectionTimer'
 import { useCustomQuestions } from '../../hooks/useCustomQuestions'
 
-const TOTAL_TIME = 22 * 60
+const TOTAL_TIME = 29 * 60 // Stage1 (18 min) + Stage2 (11 min) = 29 min
 
 export default function ListeningPracticeView() {
   const progress = useProgressStore()
@@ -35,6 +35,9 @@ export default function ListeningPracticeView() {
   const [responses, setResponses] = useState({})
   const [audioFailed, setAudioFailed] = useState({})
   const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState('')
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [lastResult, setLastResult] = useState(null)
 
   const stateRef = useRef({})
   stateRef.current = { pool, score, stage2Mode, responses }
@@ -78,6 +81,8 @@ export default function ListeningPracticeView() {
     setAnswered({})
     setResponses({})
     setAudioFailed({})
+    setShowFeedback(false)
+    setLastResult(null)
     timer.reset(TOTAL_TIME)
     timer.start(() => finalizeRef.current())
   }
@@ -95,6 +100,34 @@ export default function ListeningPracticeView() {
   const jump = (i) => {
     setIdx(i)
     setSelected(responses[i] ?? null)
+    setShowFeedback(false)
+    setLastResult(null)
+  }
+
+  // Advance to next question or finalize after user dismisses feedback
+  const pendingAdvanceRef = useRef(null)
+
+  const advance = () => {
+    const { newScore, newResponses, newAnswered, newPool, newStage2Mode } = pendingAdvanceRef.current ?? {}
+    setShowFeedback(false)
+    setLastResult(null)
+
+    if (newPool) {
+      // Transitioning to stage2
+      setPool(newPool)
+      setStage2Mode(newStage2Mode)
+      setStage1Score(newScore)
+    }
+
+    const currentPool = newPool ?? pool
+    const nextIdx = idx + 1
+    if (nextIdx < currentPool.length) {
+      setIdx(nextIdx)
+      setSelected(newResponses?.[nextIdx] ?? null)
+      return
+    }
+
+    finalize()
   }
 
   const submitAnswer = () => {
@@ -112,32 +145,34 @@ export default function ListeningPracticeView() {
     setResponses(newResponses)
     setScore(newScore)
 
-    if (idx < pool.length - 1) {
-      setIdx(idx + 1)
-      setSelected(responses[idx + 1] ?? null)
-      return
-    }
+    // Show per-answer feedback
+    setLastResult({
+      correct: selected === q.answer,
+      correctAnswer: q.options?.[q.answer],
+      yourAnswer: q.options?.[selected],
+    })
+    setShowFeedback(true)
 
-    if (stage2Mode === 'pending') {
+    // Determine what advance() should do when user clicks Continue
+    if (stage2Mode === 'pending' && idx === pool.length - 1) {
       const threshold = Math.ceil(listeningAdaptive.stage1.length * 0.5)
       const newMode = newScore >= threshold ? 'hard' : 'easy'
-      setStage1Score(newScore)
-      setStage2Mode(newMode)
-      setPool([
-        ...pool,
-        ...(newMode === 'hard' ? listeningAdaptive.stage2Hard : listeningAdaptive.stage2Easy),
-      ])
-      setIdx(idx + 1)
-      setSelected(null)
-      return
+      pendingAdvanceRef.current = {
+        newScore,
+        newResponses,
+        newAnswered,
+        newPool: [...pool, ...(newMode === 'hard' ? listeningAdaptive.stage2Hard : listeningAdaptive.stage2Easy)],
+        newStage2Mode: newMode,
+      }
+    } else {
+      pendingAdvanceRef.current = { newScore, newResponses, newAnswered, newPool: null, newStage2Mode: null }
     }
-
-    finalize()
   }
 
   const generateQuestion = async () => {
     if (!q || generating) return
     setGenerating(true)
+    setGenerateError('')
     try {
       const res = await fetch('/api/generate-question', {
         method: 'POST',
@@ -148,8 +183,10 @@ export default function ListeningPracticeView() {
       if (!res.ok || !data.question) throw new Error(data.error || 'Generation failed')
       await saveCustom(listenStageKey, listenStageIndex, data.question)
       setSelected(null)
+      setShowFeedback(false)
+      setLastResult(null)
     } catch (e) {
-      console.error('Generate failed:', e)
+      setGenerateError(e.message)
     } finally {
       setGenerating(false)
     }
@@ -157,8 +194,15 @@ export default function ListeningPracticeView() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Listening Practice</Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
+      <Typography sx={{
+        fontWeight: 800, fontSize: { xs: '1.7rem', md: '2rem' },
+        background: 'linear-gradient(135deg, #ffffff 30%, rgba(124,77,255,0.9) 100%)',
+        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+        mb: 0.5,
+      }}>
+        Listening Practice
+      </Typography>
+      <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, mb: 3 }}>
         2026 adaptive format: Stage 1 (15 questions) → Stage 2 Easy or Hard based on your score.
       </Typography>
 
@@ -193,6 +237,12 @@ export default function ListeningPracticeView() {
           </Typography>
         )}
       </Box>
+
+      {generateError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setGenerateError('')}>
+          Generate failed: {generateError}
+        </Alert>
+      )}
 
       {finished && (
         <Alert severity="success" sx={{ mb: 2 }}>
@@ -261,17 +311,43 @@ export default function ListeningPracticeView() {
             <FormControl>
               <RadioGroup
                 value={selected ?? ''}
-                onChange={(e) => setSelected(Number(e.target.value))}
+                onChange={(e) => { if (!showFeedback) setSelected(Number(e.target.value)) }}
               >
                 {q.options?.map((opt, i) => (
-                  <FormControlLabel key={i} value={i} control={<Radio />} label={opt} sx={{ mb: 0.5 }} />
+                  <FormControlLabel
+                    key={i}
+                    value={i}
+                    control={<Radio />}
+                    disabled={showFeedback}
+                    label={
+                      showFeedback ? (
+                        <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          {opt}
+                          {i === q.answer && <CheckCircleIcon color="success" fontSize="small" />}
+                          {i === selected && i !== q.answer && <CancelIcon color="error" fontSize="small" />}
+                        </Box>
+                      ) : opt
+                    }
+                    sx={{ mb: 0.5 }}
+                  />
                 ))}
               </RadioGroup>
             </FormControl>
-            <Box sx={{ mt: 3 }}>
-              <Button variant="contained" disabled={selected === null} onClick={submitAnswer}>
-                {idx === pool.length - 1 ? 'Finish Section' : 'Next'}
-              </Button>
+            {showFeedback && lastResult && (
+              <Alert severity={lastResult.correct ? 'success' : 'error'} sx={{ mt: 2, mb: 1 }}>
+                {lastResult.correct
+                  ? 'Correct!'
+                  : <>Incorrect. Correct answer: <strong>{lastResult.correctAnswer}</strong></>}
+              </Alert>
+            )}
+            <Box sx={{ mt: 2 }}>
+              {!showFeedback ? (
+                <Button variant="contained" disabled={selected === null} onClick={submitAnswer}>Submit</Button>
+              ) : (
+                <Button variant="contained" onClick={advance}>
+                  {idx === pool.length - 1 && stage2Mode !== 'pending' ? 'Finish Section' : 'Continue →'}
+                </Button>
+              )}
             </Box>
             </>}
           </CardContent>

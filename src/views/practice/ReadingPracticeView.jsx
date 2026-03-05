@@ -15,17 +15,9 @@ import { getBandEstimate } from '../../hooks/useBandEstimate'
 import SectionTimer from '../../components/SectionTimer'
 import { supabase } from '../../lib/supabase'
 import { useCustomQuestions } from '../../hooks/useCustomQuestions'
+import { toSpacedDisplay } from '../../utils/ctw'
 
 const TOTAL_TIME = 30 * 60
-
-// Returns the display form of a CTW blank with one underscore per missing character.
-// e.g. toSpacedDisplay('inves___', 'investigate') → 'inves_ _ _ _ _ _'
-function toSpacedDisplay(incomplete, answer) {
-  const prefix = incomplete.replace(/_{2,}$/, '')
-  const missingCount = answer.length - prefix.length
-  if (missingCount <= 0) return prefix
-  return prefix + Array(missingCount).fill('_').join(' ')
-}
 
 // Renders passage text with per-character slot inputs at each blank position.
 // Each missing letter gets its own visible slot showing _ or the typed character.
@@ -385,8 +377,15 @@ export default function ReadingPracticeView() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Reading Practice</Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
+      <Typography sx={{
+        fontWeight: 800, fontSize: { xs: '1.7rem', md: '2rem' },
+        background: 'linear-gradient(135deg, #ffffff 30%, rgba(0,188,212,0.9) 100%)',
+        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+        mb: 0.5,
+      }}>
+        Reading Practice
+      </Typography>
+      <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, mb: 3 }}>
         2026 adaptive format: Stage 1 (15 questions) → Stage 2 Easy or Hard based on your score.
       </Typography>
 

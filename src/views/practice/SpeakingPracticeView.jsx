@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import {
-  Box, Button, Card, CardContent, Chip, CircularProgress, Grid, LinearProgress,
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Grid, LinearProgress,
   Snackbar, TextField, Typography,
 } from '@mui/material'
 import { speakingTasks } from '../../data/speaking'
@@ -26,6 +26,7 @@ export default function SpeakingPracticeView() {
   const [errorToast, setErrorToast] = useState(false)
   const [completedTasks, setCompletedTasks] = useState({})
   const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState('')
 
   const mediaRecorderRef = useRef(null)
   const intervalRef = useRef(null)
@@ -140,7 +141,15 @@ export default function SpeakingPracticeView() {
   }
 
   const nextInterviewQuestion = () => {
-    stopRecording()
+    // Stop recording without saving progress — progress is saved once per task in stopRecording
+    if (recording) {
+      setRecording(false)
+      clearInterval(intervalRef.current)
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop()
+      }
+      stopRecognition()
+    }
     speechSynthesis.cancel()
     setTranscript('')
     setDuration(0)
@@ -176,6 +185,7 @@ export default function SpeakingPracticeView() {
   const generateQuestion = async () => {
     if (!task || generating) return
     setGenerating(true)
+    setGenerateError('')
     try {
       const res = await fetch('/api/generate-question', {
         method: 'POST',
@@ -185,12 +195,11 @@ export default function SpeakingPracticeView() {
       const data = await res.json()
       if (!res.ok || !data.question) throw new Error(data.error || 'Generation failed')
       await saveCustom('tasks', current, data.question)
-      // Reset recording state for new task
       setTranscript('')
       setDuration(0)
       setInterviewSubIdx(0)
     } catch (e) {
-      console.error('Generate failed:', e)
+      setGenerateError(e.message)
     } finally {
       setGenerating(false)
     }
@@ -205,10 +214,23 @@ export default function SpeakingPracticeView() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Speaking Practice</Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
+      <Typography sx={{
+        fontWeight: 800, fontSize: { xs: '1.7rem', md: '2rem' },
+        background: 'linear-gradient(135deg, #ffffff 30%, rgba(255,152,0,0.9) 100%)',
+        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+        mb: 0.5,
+      }}>
+        Speaking Practice
+      </Typography>
+      <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, mb: 3 }}>
         2026 format: 7 Listen &amp; Repeat (8–12 sec) + 4 Take an Interview (4 scaffolded questions × 45 sec each) = 11 tasks total.
       </Typography>
+
+      {generateError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setGenerateError('')}>
+          Generate failed: {generateError}
+        </Alert>
+      )}
 
       {/* Task type legend */}
       <Box sx={{ display: 'flex', gap: 1, mb: 3, flexWrap: 'wrap' }}>

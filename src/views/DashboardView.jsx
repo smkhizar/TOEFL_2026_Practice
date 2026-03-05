@@ -9,6 +9,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import { useProgressStore } from '../store/useProgressStore'
 import { getBandEstimate } from '../hooks/useBandEstimate'
+import { useAuthStore } from '../store/useAuthStore'
 
 const sectionDefs = [
   { name: 'Reading',   color: '#00bcd4', bg: 'rgba(0,188,212,0.1)',   border: 'rgba(0,188,212,0.2)',   icon: <MenuBookIcon />,   tasks: 'Adaptive · 2 stages', detail: 'Complete the Words · Daily Life · Academic', to: '/practice/reading'   },
@@ -33,6 +34,7 @@ const GlassCard = ({ children, sx = {} }) => (
 export default function DashboardView() {
   const navigate = useNavigate()
   const s = useProgressStore()
+  const user = useAuthStore((st) => st.user)
   const avgReading   = avg(s.readingScores)
   const avgListening = avg(s.listeningScores)
   const vals         = [avgReading, avgListening].filter((x) => x > 0)
@@ -58,7 +60,7 @@ export default function DashboardView() {
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
           mb: 0.5,
         }}>
-          Welcome back
+          Welcome back{user?.email ? `, ${user.email.split('@')[0]}` : ''}
         </Typography>
         <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 15 }}>
           Your TOEFL 2026 preparation at a glance.

@@ -4,9 +4,11 @@ import {
   DialogTitle, Snackbar, Typography,
 } from '@mui/material'
 import { useProgressStore } from '../store/useProgressStore'
+import { useAuthStore } from '../store/useAuthStore'
 
 export default function SettingsView() {
   const store = useProgressStore()
+  const userId = useAuthStore((s) => s.user?.id)
   const [micState, setMicState] = useState('unknown')
   const [checkingPerm, setCheckingPerm] = useState(false)
   const [requestingMic, setRequestingMic] = useState(false)
@@ -61,7 +63,7 @@ export default function SettingsView() {
   }
 
   const resetProgress = () => {
-    store.resetAll()
+    store.resetAll(userId)
     setConfirmReset(false)
     showToast('Progress reset.')
   }

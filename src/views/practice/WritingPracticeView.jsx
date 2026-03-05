@@ -37,6 +37,7 @@ export default function WritingPracticeView() {
   const [completedIds, setCompletedIds] = useState(new Set())
   const [arrangedChunks, setArrangedChunks] = useState([])
   const [generating, setGenerating] = useState(false)
+  const [timeUp, setTimeUp] = useState(false)
 
   const filteredTasks = useMemo(
     () => (filterType === 'all' ? writingTasks : writingTasks.filter((t) => t.type === filterType)),
@@ -81,11 +82,14 @@ export default function WritingPracticeView() {
     setSubmitted(false)
     setSubmitting(false)
     setShowSample(false)
+    setTimeUp(false)
   }
 
   // Timer restart ref pattern
   const submitRef = useRef(null)
   const restartTimerRef = useRef(null)
+  const canSubmitRef = useRef(false)
+  canSubmitRef.current = canSubmit
 
   const submit = async () => {
     if (!canSubmit) return
@@ -100,9 +104,18 @@ export default function WritingPracticeView() {
   }
   submitRef.current = submit
 
+  const onTimerExpire = () => {
+    // If there's content to submit, auto-submit; otherwise just mark time up
+    if (submitRef.current && canSubmitRef.current) {
+      submitRef.current()
+    } else {
+      setTimeUp(true)
+    }
+  }
+
   const restartTimer = () => {
     timer.reset(task.time)
-    timer.start(() => { if (!submitted) submitRef.current?.() })
+    timer.start(onTimerExpire)
   }
   restartTimerRef.current = restartTimer
 
@@ -154,8 +167,15 @@ export default function WritingPracticeView() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Writing Practice</Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
+      <Typography sx={{
+        fontWeight: 800, fontSize: { xs: '1.7rem', md: '2rem' },
+        background: 'linear-gradient(135deg, #ffffff 30%, rgba(76,175,80,0.9) 100%)',
+        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+        mb: 0.5,
+      }}>
+        Writing Practice
+      </Typography>
+      <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, mb: 3 }}>
         2026 format: 3 task types — Build a Sentence (2 min), Write an Email (7 min), Academic Discussion (10 min).
       </Typography>
 
@@ -385,6 +405,12 @@ export default function WritingPracticeView() {
           </Box>}
         </CardContent>
       </Card>
+
+      {timeUp && !submitted && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Time's up! No response was submitted for this task. Click <strong>Next Task</strong> to continue.
+        </Alert>
+      )}
 
       {submitted && task.type !== 'Build a Sentence' && (
         <Alert severity={words >= (task.minWords || 0) ? 'success' : 'warning'}>

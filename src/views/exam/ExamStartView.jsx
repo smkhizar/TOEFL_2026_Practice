@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Alert, Box, Button, Card, CardContent, Chip, FormControl,
+  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions,
+  DialogContent, DialogTitle, FormControl,
   FormControlLabel, Radio, RadioGroup, TextField, Typography,
 } from '@mui/material'
 import SectionTimer from '../../components/SectionTimer'
@@ -13,6 +14,7 @@ import { listeningAdaptive } from '../../data/listening'
 import { speakingTasks as allSpeakingTasks } from '../../data/speaking'
 import { writingTasks as allWritingTasks } from '../../data/writing'
 import { mockTests } from '../../data/mocks'
+import { toSpacedDisplay, formatPassageText } from '../../utils/ctw'
 
 // Module-level lookup maps (stable, computed once)
 const readingMap = Object.fromEntries(
@@ -23,21 +25,6 @@ const listeningMap = Object.fromEntries(
 )
 const writingMap = Object.fromEntries(allWritingTasks.map((t) => [t.id, t]))
 const speakingMap = Object.fromEntries(allSpeakingTasks.map((t) => [t.id, t]))
-
-function toSpacedDisplay(incomplete, answer) {
-  const prefix = incomplete.replace(/_{2,}$/, '')
-  const missingCount = answer.length - prefix.length
-  if (missingCount <= 0) return prefix
-  return prefix + Array(missingCount).fill('_').join(' ')
-}
-
-function formatPassageText(passageText, blanks) {
-  let text = passageText
-  blanks.forEach((blank) => {
-    text = text.replace(blank.incomplete, toSpacedDisplay(blank.incomplete, blank.answer))
-  })
-  return text
-}
 
 const PHASE_LABELS = {
   reading_s1: 'Read S1', reading_s2: 'Read S2',
@@ -98,6 +85,7 @@ export default function ExamStartView() {
   const [speakingSubIndex, setSpeakingSubIndex] = useState(0)
   const [readingS1Score, setReadingS1Score] = useState(0)
   const [listeningS1Score, setListeningS1Score] = useState(0)
+  const [forfeitDialog, setForfeitDialog] = useState(false)
   const [readingStage2Mode, setReadingStage2Mode] = useState(null)
   const [listeningStage2Mode, setListeningStage2Mode] = useState(null)
   const [examResult, setExamResult] = useState({
@@ -285,17 +273,18 @@ export default function ExamStartView() {
     // Phase complete — determine next phase
     timer.stop()
 
-    const nextPhaseMap = (currentPhase, s1Score, s1Items) => {
+    const nextPhaseMap = (currentPhase) => {
       switch (currentPhase) {
         case 'reading_s1': {
-          const mode = readingS1Score / readingS1Items.length >= 0.5 ? 'hard' : 'easy'
+          // Use updatedResult.reading.correct (includes current answer) not stale state
+          const mode = updatedResult.reading.correct / readingS1Items.length >= 0.5 ? 'hard' : 'easy'
           setReadingStage2Mode(mode)
           setExamResult((r) => ({ ...r, reading: { ...r.reading, adaptive: mode } }))
           return 'reading_s2'
         }
         case 'reading_s2': return 'listening_s1'
         case 'listening_s1': {
-          const mode = listeningS1Score / listeningS1Items.length >= 0.5 ? 'hard' : 'easy'
+          const mode = updatedResult.listening.correct / listeningS1Items.length >= 0.5 ? 'hard' : 'easy'
           setListeningStage2Mode(mode)
           setExamResult((r) => ({ ...r, listening: { ...r.listening, adaptive: mode } }))
           return 'listening_s2'
@@ -339,38 +328,25 @@ export default function ExamStartView() {
   useEffect(() => {
     timer.reset(1080)
     timer.start(() => advanceItemRef.current?.())
+    // Only listen to visibilitychange (tab/window hide) — not window.blur which fires
+    // on any focus loss including dev tools, causing double-counting
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
         setFocusWarnings((w) => {
           const next = w + 1
           if (next >= 3) {
-            alert('Exam forfeited due to repeated focus loss.')
+            setForfeitDialog(true)
             setActive(false)
             timer.stop()
-            navigate('/exam')
           }
           return next
         })
       }
     }
-    const onBlur = () => {
-      setFocusWarnings((w) => {
-        const next = w + 1
-        if (next >= 3) {
-          alert('Exam forfeited due to repeated focus loss.')
-          setActive(false)
-          timer.stop()
-          navigate('/exam')
-        }
-        return next
-      })
-    }
     document.addEventListener('visibilitychange', onVisibility)
-    window.addEventListener('blur', onBlur)
     return () => {
       speechSynthesis.cancel()
       document.removeEventListener('visibilitychange', onVisibility)
-      window.removeEventListener('blur', onBlur)
     }
   }, []) // eslint-disable-line
 
@@ -783,6 +759,19 @@ export default function ExamStartView() {
       <Alert severity="warning" variant="outlined">
         Leaving this page will forfeit your current exam session.
       </Alert>
+
+      {/* Forfeit dialog — replaces native alert() */}
+      <Dialog open={forfeitDialog} onClose={() => {}}>
+        <DialogTitle>Exam Forfeited</DialogTitle>
+        <DialogContent>
+          <Typography>This exam was forfeited due to repeated tab switching (3 violations).</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => { setForfeitDialog(false); navigate('/exam') }}>
+            Back to Exams
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

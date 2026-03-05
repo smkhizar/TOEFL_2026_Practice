@@ -1,8 +1,6 @@
 // Vercel serverless function — POST /api/generate-question
-// Body: { section, type, stage }
+// Body: { section, type }
 // Returns: { question: <object matching data file schema> }
-
-export const config = { runtime: 'edge' }
 
 const SYSTEM = `You are a TOEFL 2026 iBT question writer. Generate authentic, exam-quality questions.
 Return ONLY valid JSON — no markdown, no explanation, no code fences.`
@@ -41,7 +39,6 @@ Return JSON only.`,
 Schema: { "id": "lgen_<random6>", "type": "Listen and Choose a Response", "transcript": "<1-2 sentence spoken prompt someone might say>", "prompt": "<question about what reply is best>", "options": ["<A>","<B>","<C>","<D>"], "answer": <0-3>, "audioUrl": null }
 Rules:
 - transcript: a statement or question someone says in a campus/daily-life situation
-- Question: "What is the best response?" or "What would the listener most likely say?"
 - One option is a natural, appropriate reply; others are off-topic or awkward
 Return JSON only.`,
 
@@ -72,7 +69,7 @@ Return JSON only.`,
 Schema: { "id": "wgen_<random6>", "type": "Build a Sentence", "chunks": ["<chunk1>","<chunk2>","<chunk3>","<chunk4>"], "correct": "<chunks joined with spaces in correct order>", "time": 120, "minWords": 0, "sample": null }
 Rules:
 - chunks: 4 meaningful phrase fragments that form one grammatically correct sentence when ordered correctly
-- The correct field is exactly chunks[0] + " " + chunks[1] + ... in correct order
+- correct field is exactly the chunks joined in the right order with spaces
 - Academic or campus topic
 Return JSON only.`,
 
@@ -85,7 +82,7 @@ Rules:
 Return JSON only.`,
 
     'Academic Discussion': `Generate a TOEFL 2026 "Academic Discussion" writing task.
-Schema: { "id": "wgen_<random6>", "type": "Academic Discussion", "prompt": "<professor's discussion question, 2-3 sentences>", "context": "<background or student post to respond to>", "minWords": 100, "time": 600, "sample": "<example response 100-150 words>" }
+Schema: { "id": "wgen_<random6>", "type": "Academic Discussion", "prompt": "<professor discussion question, 2-3 sentences>", "context": "<background or student post to respond to>", "minWords": 100, "time": 600, "sample": "<example response 100-150 words>" }
 Rules:
 - prompt: professor poses a thought-provoking academic question
 - context: one student's existing post to engage with
@@ -98,56 +95,44 @@ Return JSON only.`,
 Schema: { "id": "sgen_<random6>", "type": "Listen and Repeat", "scene": "<brief visual scene description>", "promptAudioText": "<1-2 sentence statement to repeat>", "expectedSeconds": <8-12> }
 Rules:
 - promptAudioText: a natural, clear sentence about campus life or academic topics
-- Difficulty appropriate for TOEFL (not too simple, not complex)
 - expectedSeconds matches approximate speech time at normal pace
 Return JSON only.`,
 
     'Take an Interview': `Generate a TOEFL 2026 "Take an Interview" speaking task.
 Schema: { "id": "sgen_<random6>", "type": "Take an Interview", "topic": "<interview topic>", "questions": [
-  { "questionType": "Descriptive", "promptAudioText": "<describe X question>", "expectedSeconds": 45 },
-  { "questionType": "Opinion", "promptAudioText": "<opinion question about topic>", "expectedSeconds": 45 },
+  { "questionType": "Descriptive", "promptAudioText": "<describe question>", "expectedSeconds": 45 },
+  { "questionType": "Opinion", "promptAudioText": "<opinion question>", "expectedSeconds": 45 },
   { "questionType": "Analysis", "promptAudioText": "<why/how analytical question>", "expectedSeconds": 45 },
   { "questionType": "Projection", "promptAudioText": "<future/hypothetical question>", "expectedSeconds": 45 }
 ]}
 Rules:
-- All 4 questions must relate to the same topic and escalate in complexity
-- Descriptive: simple factual/personal description
-- Opinion: preference or viewpoint
-- Analysis: reasons, causes, effects
-- Projection: future trends, hypotheticals, recommendations
+- All 4 questions relate to the same topic, escalating in complexity
 Return JSON only.`,
   },
 }
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
+    return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  let body
-  try {
-    body = await req.json()
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 })
-  }
-
-  const { section, type } = body
+  const { section, type } = req.body || {}
   if (!section || !type) {
-    return new Response(JSON.stringify({ error: 'section and type are required' }), { status: 400 })
+    return res.status(400).json({ error: 'section and type are required' })
   }
 
   const promptText = PROMPTS[section]?.[type]
   if (!promptText) {
-    return new Response(JSON.stringify({ error: `Unknown section/type: ${section}/${type}` }), { status: 400 })
+    return res.status(400).json({ error: `Unknown section/type: ${section}/${type}` })
   }
 
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }), { status: 500 })
+    return res.status(500).json({ error: 'OPENAI_API_KEY not configured' })
   }
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -164,26 +149,23 @@ export default async function handler(req) {
       }),
     })
 
-    if (!res.ok) {
-      const err = await res.text()
-      return new Response(JSON.stringify({ error: `OpenAI error: ${err}` }), { status: 502 })
+    if (!openaiRes.ok) {
+      const err = await openaiRes.text()
+      return res.status(502).json({ error: `OpenAI error: ${err}` })
     }
 
-    const data = await res.json()
+    const data = await openaiRes.json()
     const raw = data.choices?.[0]?.message?.content?.trim()
     if (!raw) {
-      return new Response(JSON.stringify({ error: 'Empty response from OpenAI' }), { status: 502 })
+      return res.status(502).json({ error: 'Empty response from OpenAI' })
     }
 
     // Strip any accidental markdown code fences
     const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim()
     const question = JSON.parse(cleaned)
 
-    return new Response(JSON.stringify({ question }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return res.status(200).json({ question })
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500 })
+    return res.status(500).json({ error: e.message })
   }
 }

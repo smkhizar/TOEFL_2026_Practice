@@ -112,11 +112,15 @@ export default function ReadingPracticeView() {
   // Supabase session helpers — read uid fresh from store to avoid stale closure
   const upsertSession = (data) => {
     const uid = useAuthStore.getState().user?.id
+    console.log('[upsertSession] uid:', uid)
     if (!uid) return
     supabase.from('reading_sessions').upsert(
       { user_id: uid, session_data: data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
-    )
+    ).then(({ error }) => {
+      if (error) console.error('[upsertSession] failed:', error)
+      else console.log('[upsertSession] saved ok')
+    })
   }
   const deleteSession = () => {
     const uid = useAuthStore.getState().user?.id

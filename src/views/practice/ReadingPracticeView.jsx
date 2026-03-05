@@ -26,8 +26,9 @@ function toSpacedDisplay(incomplete, answer) {
   return prefix + Array(missingCount).fill('_').join(' ')
 }
 
-// Renders passage text with inline input fields at each blank position.
-// User types only the missing letters (e.g. "tigate" for inves___ → investigate).
+// Renders passage text with per-character slot inputs at each blank position.
+// Each missing letter gets its own visible slot showing _ or the typed character.
+// A transparent overlay input captures keystrokes for the whole blank.
 function renderPassageWithInputs(passageText, blanks, values, onChangeAt, disabled, blankFeedback) {
   if (!blanks?.length) return [passageText]
   const parts = []
@@ -39,31 +40,47 @@ function renderPassageWithInputs(passageText, blanks, values, onChangeAt, disabl
     const prefix = blank.incomplete.replace(/_{2,}$/, '')
     const missingCount = blank.answer.length - prefix.length
     const fc = blankFeedback?.[bi]
-    const borderColor = fc === 'correct' ? '#4caf50' : fc === 'incorrect' ? '#f44336' : '#90caf9'
-    const textColor = fc === 'correct' ? '#4caf50' : fc === 'incorrect' ? '#f44336' : 'inherit'
+    const slotColor = fc === 'correct' ? '#4caf50' : fc === 'incorrect' ? '#f44336' : '#90caf9'
+    const chars = (values[bi] || '').split('')
+
     parts.push(
       <span key={bi} style={{ whiteSpace: 'nowrap' }}>
         {prefix}
-        <input
-          value={values[bi] || ''}
-          onChange={(e) => { if (!disabled) onChangeAt(bi, e.target.value) }}
-          disabled={disabled}
-          maxLength={missingCount}
-          placeholder={Array(missingCount).fill('_').join(' ')}
-          style={{
-            width: `${Math.max(missingCount * 18, 30)}px`,
-            border: 'none',
-            borderBottom: `2px solid ${borderColor}`,
-            background: 'transparent',
-            color: textColor,
-            fontFamily: 'inherit',
-            fontSize: 'inherit',
-            outline: 'none',
-            textAlign: 'center',
-            padding: '0 2px',
-            margin: '0 2px',
-          }}
-        />
+        {/* Slot container: visible slots + invisible overlay input */}
+        <span style={{ position: 'relative', display: 'inline-flex', gap: '4px', verticalAlign: 'middle', margin: '0 3px' }}>
+          {Array(missingCount).fill(0).map((_, ci) => (
+            <span key={ci} style={{
+              display: 'inline-block',
+              width: '18px',
+              textAlign: 'center',
+              borderBottom: `2.5px solid ${slotColor}`,
+              color: chars[ci] ? slotColor : slotColor,
+              fontWeight: 700,
+              fontSize: 'inherit',
+              lineHeight: 1.5,
+              userSelect: 'none',
+            }}>
+              {chars[ci] || '_'}
+            </span>
+          ))}
+          <input
+            value={values[bi] || ''}
+            onChange={(e) => { if (!disabled) onChangeAt(bi, e.target.value.slice(0, missingCount)) }}
+            disabled={disabled}
+            maxLength={missingCount}
+            style={{
+              position: 'absolute',
+              left: 0, top: 0,
+              width: '100%', height: '100%',
+              opacity: 0,
+              cursor: disabled ? 'default' : 'text',
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              fontSize: 'inherit',
+            }}
+          />
+        </span>
       </span>
     )
     remaining = remaining.slice(pos + blank.incomplete.length)
